@@ -13,6 +13,8 @@ const today=()=>new Date().toLocaleDateString('sv-SE');   // YYYY-MM-DD, local t
 function defaultState(){
   return {
     tab:'plan', date:today(),
+    daily:{kcal:1712, split:{p:46,c:22,f:32}, mode:'pct'},   // split = % of calories
+    mealUnit:'g',                                           // per-meal entry: 'g' or 'pct'
     template:[
       {id:'m1',name:'Breakfast',t:{p:55,c:15,f:20}},
       {id:'m2',name:'Lunch',    t:{p:50,c:55,f:20}},
@@ -42,6 +44,27 @@ const targetKcal=t=>t.p*4+t.c*4+t.f*9;
 function dayTotals(){ const a={p:0,c:0,f:0,k:0},b={p:0,c:0,f:0,k:0};
   S.template.forEach(m=>{const t=mealTotals(m.id); a.p+=t.p;a.c+=t.c;a.f+=t.f;a.k+=t.k;
     b.p+=m.t.p;b.c+=m.t.c;b.f+=m.t.f;b.k+=targetKcal(m.t);}); return {act:a,tgt:b}; }
+// daily target derived from calories + macro split
+function dailyGrams(){ const d=S.daily, k=+d.kcal||0;
+  return {p:k*(d.split.p/100)/4, c:k*(d.split.c/100)/4, f:k*(d.split.f/100)/9, k}; }
+function allocated(){ const a={p:0,c:0,f:0,k:0};
+  S.template.forEach(m=>{a.p+=m.t.p;a.c+=m.t.c;a.f+=m.t.f;a.k+=targetKcal(m.t);}); return a; }
+function setDailyGram(key,v){            // grams entered -> recompute calories and split
+  const g=dailyGrams(); g[key]=Math.max(0,+v||0);
+  const k=g.p*4+g.c*4+g.f*9; if(k<=0) return;
+  S.daily.kcal=Math.round(k);
+  S.daily.split={p:r1(g.p*4/k*100), c:r1(g.c*4/k*100), f:r1(g.f*9/k*100)};
+}
+function normalizeSplit(){ const t=S.daily.split.p+S.daily.split.c+S.daily.split.f; if(t<=0) return;
+  const s=S.daily.split; S.daily.split={p:r1(s.p/t*100), c:r1(s.c/t*100), f:r1(s.f/t*100)}; }
+function scaleMealsToDaily(){            // keep each meal's shape, hit the daily total
+  const d=dailyGrams(), a=allocated(), n=S.template.length||1;
+  ['p','c','f'].forEach(k=>{
+    if(a[k]>0){ const r=d[k]/a[k]; S.template.forEach(m=>m.t[k]=r1(m.t[k]*r)); }
+    else S.template.forEach(m=>m.t[k]=r1(d[k]/n));
+  });
+}
+
 const r1=n=>Math.round(n*10)/10, r0=n=>Math.round(n);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -83,9 +106,15 @@ function copyText(t){
   function fb(){ try{ const ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity='0';
     document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); ok(); }catch(e){ toast('Copy failed — select the text manually.'); } }
 }
-function setStatus(s){ status=s; const el=$('#sync');
-  el.className='sync '+({ok:'s-ok',wait:'s-wait',local:'s-local'}[s]||'s-local');
-  $('#syncTxt').textContent={ok:'synced',wait:'pending',local:sb?'signed out':'local'}[s]; }
+function setStatus(s){ status=s; paintAccountBtn(); }
+function paintAccountBtn(){
+  const el=$('#btnAccount'); if(!el) return;
+  el.className='acctbtn '+({ok:'s-ok',wait:'s-wait',local:'s-local'}[status]||'s-local');
+  const label = SESSION ? (SESSION.user.email||'Account')
+              : (sb ? 'Sign in' : 'Local mode');
+  el.title = SESSION ? ({ok:'Synced',wait:'Changes pending',local:'Offline'}[status]) : label;
+  $('#acctTxt').textContent = label.length>22 ? label.slice(0,20)+'…' : label;
+}
 
 /* ---------------- generator ---------------- */
 const W={p:6,c:4,f:9};
@@ -186,7 +215,8 @@ async function flush(){
 async function runOp(op){
   const now=new Date().toISOString();
   if(op.op==='profile'){
-    const {error}=await sb.from('profiles').update({meals:S.template,updated_at:now}).eq('user_id',SESSION.user.id);
+    const payload={v:2,template:S.template,daily:S.daily,mealUnit:S.mealUnit};
+    const {error}=await sb.from('profiles').update({meals:payload,updated_at:now}).eq('user_id',SESSION.user.id);
     if(error) throw error; return;
   }
   if(op.op==='day'){
@@ -212,8 +242,14 @@ async function cloudPull(){
   HH=prof.household_id;
   HOUSE=(await sb.from('households').select('*').eq('id',HH).maybeSingle()).data;
 
-  if(Array.isArray(prof.meals)&&prof.meals.length) S.template=prof.meals;
-  else await sb.from('profiles').update({meals:S.template,updated_at:new Date().toISOString()}).eq('user_id',u);
+  const pm=prof.meals;
+  if(Array.isArray(pm)&&pm.length) S.template=pm;                       // v1 shape
+  else if(pm&&pm.v===2){                                                 // v2 shape
+    if(Array.isArray(pm.template)&&pm.template.length) S.template=pm.template;
+    if(pm.daily) S.daily=pm.daily;
+    if(pm.mealUnit) S.mealUnit=pm.mealUnit;
+  } else await sb.from('profiles').update(
+      {meals:{v:2,template:S.template,daily:S.daily,mealUnit:S.mealUnit},updated_at:new Date().toISOString()}).eq('user_id',u);
 
   const {data:rows}=await sb.from('foods').select('*').eq('household_id',HH);
   if(rows&&rows.length) S.foods=rows.map(fromRow).sort((a,b)=>a.n.localeCompare(b.n));
@@ -259,6 +295,7 @@ function subscribe(){
 
 /* ---------------- views ---------------- */
 function ledger(){
+  const host=$('#ledger'); if(!host) return;
   const {act,tgt}=dayTotals();
   const cell=(cls,lab,a,t,unit)=>{
     const pct=t>0?Math.min(140,a/t*100):0, over=t>0&&a>t*1.02, d=a-t;
@@ -268,12 +305,13 @@ function ledger(){
       <div class="val">${r0(a)} <small>/ ${r0(t)}${unit==='kcal'?'':' g'}</small></div>
       <div class="track"><div class="fill" style="width:${Math.min(100,pct)}%"></div><div class="tick" style="left:calc(${t>0?Math.min(100,100*t/Math.max(a,t)):100}% - 1px)"></div></div></div>`;
   };
-  $('#ledger').innerHTML=cell('k-cal','Calories',act.k,tgt.k,'kcal')+cell('k-p','Protein',act.p,tgt.p)+
+  host.innerHTML=cell('k-cal','Calories',act.k,tgt.k,'kcal')+cell('k-p','Protein',act.p,tgt.p)+
     cell('k-c','Carbs',act.c,tgt.c)+cell('k-f','Fat',act.f,tgt.f);
-  $('#dDate').value=S.date;
-  const diff=Math.round((new Date(S.date)-new Date(today()))/864e5);
-  $('#dLabel').textContent=diff===0?'today':diff===-1?'yesterday':diff===1?'tomorrow':
-    new Date(S.date).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+  const di=$('#dDate'); if(di) di.value=S.date;
+  const dl=$('#dLabel');
+  if(dl){ const diff=Math.round((new Date(S.date)-new Date(today()))/864e5);
+    dl.textContent=diff===0?'today':diff===-1?'yesterday':diff===1?'tomorrow':
+      new Date(S.date).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}); }
 }
 function mealCard(m){
   const list=items(m.id), tot=mealTotals(m.id);
@@ -309,10 +347,18 @@ function mealCard(m){
       <button class="btn ghost" data-act="savemeal">Save</button>
       <button class="btn ghost" data-act="clear">Clear</button></div></section>`;
 }
-const viewPlan=()=>`<div class="planhead"><h2 style="margin:0">Today's plan</h2><span class="spacer"></span>
-  <button class="btn solid" id="fillAll">Fill the whole day</button>
-  <button class="btn" id="copyPrev">Same as yesterday</button>
-  <button class="btn" id="copyDay">Copy as text</button></div>
+const viewPlan=()=>`<div class="datebar">
+    <button class="dnav" id="dPrev" aria-label="previous day">‹</button>
+    <input type="date" id="dDate">
+    <button class="dnav" id="dNext" aria-label="next day">›</button>
+    <button class="mini" id="dToday">Today</button>
+    <span class="dlabel" id="dLabel"></span></div>
+  <div class="ledger" id="ledger"></div>
+  <div class="planhead"><h2 style="margin:0">Today's plan</h2><span class="spacer"></span>
+    <button class="btn solid" id="fillAll">Fill the whole day</button>
+    <button class="btn" id="copyPrev">Same as yesterday</button>
+    <button class="btn" id="btnShare">Share</button>
+    <button class="btn ghost" id="copyDay">Copy as text</button></div>
   <div class="grid">${S.template.map(mealCard).join('')}</div>`;
 
 function viewFoods(){
@@ -338,25 +384,71 @@ function viewFoods(){
       <tbody>${rows||'<tr><td colspan="11" class="empty">No food matches that search.</td></tr>'}</tbody></table></div>`;
 }
 function viewTargets(){
-  const {tgt}=dayTotals();
-  const rows=S.template.map(m=>`<div class="trow" data-m="${m.id}">
-    <input type="text" data-k="name" value="${esc(m.name)}">
-    <input type="number" data-k="p" step="1" value="${m.t.p}">
-    <input type="number" data-k="c" step="1" value="${m.t.c}">
-    <input type="number" data-k="f" step="1" value="${m.t.f}">
-    <span class="num hint thide" style="text-align:right">${r0(targetKcal(m.t))} kcal</span>
-    <button class="ico" data-act="delmeal" title="Delete meal">✕</button></div>`).join('');
+  const d=dailyGrams(), a=allocated(), sp=S.daily.split;
+  const sum=r1(sp.p+sp.c+sp.f), byPct=S.daily.mode==='pct', mealPct=S.mealUnit==='pct';
+  const seg=(id,cur,opts)=>`<div class="seg" id="${id}">`+opts.map(o=>
+    `<button data-v="${o[0]}"${cur===o[0]?' class="on"':''}>${o[1]}</button>`).join('')+`</div>`;
+
+  const macro=(k,lab,cls)=>{
+    const g=d[k], pc=sp[k];
+    return `<label class="dfield"><span class="dlab"><span class="dot d-${cls}"></span>${lab}</span>
+      <input class="num" type="number" step="${byPct?'0.5':'1'}" data-daily="${k}"
+             value="${byPct?pc:r1(g)}" min="0">
+      <span class="dsub">${byPct?`${r1(g)} g`:`${d.k>0?r1(pc):0} %`}</span></label>`;
+  };
+
+  const rows=S.template.map(m=>{
+    const cell=k=>{
+      const v=mealPct?(d[k]>0?r1(m.t[k]/d[k]*100):0):m.t[k];
+      return `<input type="number" data-k="${k}" step="${mealPct?'1':'1'}" value="${v}" min="0">`;
+    };
+    return `<div class="trow" data-m="${m.id}">
+      <input type="text" data-k="name" value="${esc(m.name)}">
+      ${cell('p')}${cell('c')}${cell('f')}
+      <span class="num hint thide" style="text-align:right">${r0(targetKcal(m.t))} kcal</span>
+      <button class="ico" data-act="delmeal" title="Delete meal">✕</button></div>`;
+  }).join('');
+
+  const gap=(lab,al,da,cls)=>{
+    const diff=al-da, near=Math.abs(diff)<(lab==='kcal'?12:1.5);
+    return `<span class="allocitem"><span class="dot d-${cls}"></span>${lab}
+      <b class="num">${r0(al)}</b><span class="hint num"> / ${r0(da)}</span>
+      <span class="delta num ${near?'fit':(diff>0?'pos':'neg')}">${diff>0?'+':''}${r0(diff)}</span></span>`;
+  };
+
   return `<h2>Targets</h2>
-    <p class="hint" style="margin:-4px 0 12px">Meal calories come from the macros: 4×protein + 4×carbs + 9×fat. Targets are personal and apply to every day.</p>
-    <div class="card"><div class="trow thead"><span>Meal</span><span style="text-align:right">Protein</span><span style="text-align:right">Carbs</span><span style="text-align:right">Fat</span><span class="thide" style="text-align:right">Calories</span><span></span></div>
-      ${rows}
-      <div class="tsum"><span>Daily:</span>
-        <span><span class="dot d-p"></span> ${r0(tgt.p)} g protein</span>
-        <span><span class="dot d-c"></span> ${r0(tgt.c)} g carbs</span>
-        <span><span class="dot d-f"></span> ${r0(tgt.f)} g fat</span>
-        <span><b>${r0(tgt.k)} kcal</b></span></div></div>
-    <div class="acts" style="margin-top:12px"><button class="btn" id="addMeal">Add meal</button>
-      <button class="btn ghost" id="resetAll">Reset everything</button></div>`;
+  <p class="hint" style="margin:-4px 0 14px">Start from your daily calories and split them into macros, then decide how much of each goes to which meal. Targets are personal and apply to every day.</p>
+
+  <section class="card daily">
+    <div class="dhead"><h3>Daily target</h3><span class="spacer"></span>
+      ${seg('segDaily',S.daily.mode,[['pct','% of calories'],['g','grams']])}</div>
+    <div class="dgrid">
+      <label class="dfield kcalfield"><span class="dlab">Calories</span>
+        <input class="num" type="number" step="10" min="0" data-daily="kcal" value="${r0(S.daily.kcal)}"${byPct?'':' disabled'}>
+        <span class="dsub">${byPct?'kcal per day':'from the macros'}</span></label>
+      ${macro('p','Protein','p')}${macro('c','Carbs','c')}${macro('f','Fat','f')}
+    </div>
+    ${byPct&&Math.abs(sum-100)>0.5?`<div class="warn">The split adds up to ${sum}% instead of 100%, so the grams above will not match your calorie goal.
+      <button class="btn" id="normSplit" style="margin-left:6px">Normalise to 100%</button></div>`:''}
+  </section>
+
+  <section class="card" style="margin-top:14px">
+    <div class="dhead"><h3>Split across meals</h3><span class="spacer"></span>
+      ${seg('segMeal',S.mealUnit,[['g','grams'],['pct','% of daily']])}</div>
+    <div class="trow thead"><span>Meal</span><span style="text-align:right">Protein</span><span style="text-align:right">Carbs</span><span style="text-align:right">Fat</span><span class="thide" style="text-align:right">Calories</span><span></span></div>
+    ${rows}
+    <div class="alloc">
+      <span class="alloclab">Allocated</span>
+      ${gap('protein',a.p,d.p,'p')}${gap('carbs',a.c,d.c,'c')}${gap('fat',a.f,d.f,'f')}
+      <span class="allocitem">kcal <b class="num">${r0(a.k)}</b><span class="hint num"> / ${r0(d.k)}</span>
+        <span class="delta num ${Math.abs(a.k-d.k)<12?'fit':(a.k>d.k?'pos':'neg')}">${a.k>d.k?'+':''}${r0(a.k-d.k)}</span></span>
+    </div>
+  </section>
+
+  <div class="acts" style="margin-top:12px">
+    <button class="btn solid" id="scaleMeals">Fit meals to daily target</button>
+    <button class="btn" id="addMeal">Add meal</button>
+    <button class="btn ghost" id="resetAll">Reset everything</button></div>`;
 }
 function viewSaved(){
   if(!S.saved.length) return `<h2>Saved combinations</h2><div class="card empty" style="padding:26px">Nothing saved yet. Hit <b>Save</b> on a meal you like in the Plan tab.</div>`;
@@ -375,13 +467,15 @@ function viewSaved(){
 function viewAccount(){
   if(!sb) return `<h2>Account</h2><div class="card acct">
     <p style="margin:0 0 10px">No server configured, so the app runs in <b>local mode</b>: data stays in this browser only, with sync and shared kitchen turned off.</p>
-    <p class="hint" style="margin:0">To turn them on, create a Supabase project, run <code>schema.sql</code>, and fill in the two lines in <code>config.js</code>.</p></div>`;
+    <p class="hint" style="margin:0">To turn them on, create a Supabase project, run <code>schema.sql</code>, and fill in the two lines in <code>config.js</code>.</p>
+    <div class="acts" style="margin-top:12px"><button class="btn" id="btnExport">Back up</button></div></div>`;
   if(!SESSION) return `<h2>Sign in</h2><div class="card acct">
     <p class="hint" style="margin:0 0 14px">Signing in stores your plans on the server, so your phone and computer see the same data. You can also use the app signed out — everything then stays in this browser.</p>
     <div class="field"><label>Email</label><input type="email" id="aEmail" autocomplete="email"></div>
     <div class="field"><label>Password</label><input type="password" id="aPass" autocomplete="current-password"></div>
     <div class="acts"><button class="btn solid" id="doLogin">Sign in</button><button class="btn" id="doSignup">Create account</button></div>
-    <p class="hint" id="aMsg" style="margin:12px 0 0"></p></div>`;
+    <p class="hint" id="aMsg" style="margin:12px 0 0"></p></div>
+    <div class="acts" style="margin-top:12px"><button class="btn" id="btnExport">Back up</button></div>`;
   return `<h2>Account</h2><div class="card acct">
     <div class="field"><label>Signed in as</label><div>${esc(SESSION.user.email||'')}</div></div>
     <div class="field"><label>Kitchen</label><div>${esc(HOUSE?.name||'—')}</div></div>
@@ -390,10 +484,12 @@ function viewAccount(){
       <p class="hint" style="margin:6px 0 0">Give this code to a friend and you will share the same food list and saved combinations. Daily plans stay private to each person.</p></div>
     <div class="field"><label>Join another kitchen</label><input type="text" id="joinCode" placeholder="6-character code"></div>
     <div class="warn">Joining deletes your kitchen's food list and replaces it with theirs. Back up first.</div>
-    <div class="acts"><button class="btn solid" id="doJoin">Join</button><button class="btn ghost" id="doLogout">Sign out</button></div></div>`;
+    <div class="acts"><button class="btn solid" id="doJoin">Join</button><button class="btn ghost" id="doLogout">Sign out</button></div></div>
+    <div class="acts" style="margin-top:12px"><button class="btn" id="btnExport">Back up</button></div>`;
 }
 function render(){
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===S.tab)));
+  paintAccountBtn();
   $('#view').innerHTML = S.tab==='plan'?viewPlan():S.tab==='foods'?viewFoods():S.tab==='targets'?viewTargets():
                          S.tab==='saved'?viewSaved():viewAccount();
   ledger();
@@ -435,12 +531,14 @@ function dayAsText(){
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return; S.tab=b.dataset.tab; save(); render();});
 
 async function goDate(d){ S.date=d; ALT={}; if(cloud()) { try{ await loadDay(d); }catch(e){ setStatus('wait'); } } save(); render(); }
-$('#dPrev').onclick=()=>{ const d=new Date(S.date); d.setDate(d.getDate()-1); goDate(d.toLocaleDateString('sv-SE')); };
-$('#dNext').onclick=()=>{ const d=new Date(S.date); d.setDate(d.getDate()+1); goDate(d.toLocaleDateString('sv-SE')); };
-$('#dToday').onclick=()=>goDate(today());
-$('#dDate').onchange=e=>{ if(e.target.value) goDate(e.target.value); };
+$('#btnAccount').addEventListener('click',()=>{ S.tab='account'; save(); render(); });
+const shiftDate=n=>{ const d=new Date(S.date); d.setDate(d.getDate()+n); goDate(d.toLocaleDateString('sv-SE')); };
 
 $('#view').addEventListener('click',e=>{
+  const sg=e.target.closest('.seg button');
+  if(sg){ const host=sg.parentElement.id;
+    if(host==='segDaily') S.daily.mode=sg.dataset.v; else if(host==='segMeal') S.mealUnit=sg.dataset.v;
+    touchProfile(); render(); return; }
   const b=e.target.closest('[data-act]'); if(!b) return;
   const act=b.dataset.act, mealEl=b.closest('[data-m]'), rowEl=b.closest('.row');
   if(act==='dec'||act==='inc'){
@@ -493,9 +591,17 @@ $('#view').addEventListener('change',e=>{
     f[k]= k==='use'?el.checked : (k==='n'||k==='b'||k==='role')?el.value : (+el.value||0);
     save(); if(cloud()) enqueue({op:'food',id:f.id});
     if(k==='b'||k==='n') render(); else ledger(); return; }
+  if(el.id==='dDate'&&el.value){ goDate(el.value); return; }
+  if(el.dataset.daily){ const k=el.dataset.daily, v=+el.value||0;
+    if(k==='kcal') S.daily.kcal=Math.max(0,v);
+    else if(S.daily.mode==='pct') S.daily.split[k]=Math.max(0,v);
+    else setDailyGram(k,v);
+    touchProfile(); render(); return; }
   const tw=el.closest('.trow[data-m]');
   if(tw&&el.dataset.k){ const m=S.template.find(x=>x.id===tw.dataset.m), k=el.dataset.k;
-    if(k==='name') m.name=el.value; else m.t[k]=+el.value||0;
+    if(k==='name') m.name=el.value;
+    else if(S.mealUnit==='pct'){ const d=dailyGrams(); m.t[k]=r1((+el.value||0)/100*d[k]); }
+    else m.t[k]=+el.value||0;
     touchProfile(); render(); return; }
 });
 
@@ -530,6 +636,11 @@ document.addEventListener('click',async e=>{
     const p=S.days[prev];
     if(!p||!Object.keys(p).length){ toast('No plan saved for yesterday.'); return; }
     S.days[S.date]=JSON.parse(JSON.stringify(p)); touchDay(); render(); toast("Yesterday's plan copied"); }
+  if(id==='dPrev') shiftDate(-1);
+  if(id==='dNext') shiftDate(1);
+  if(id==='dToday') goDate(today());
+  if(id==='normSplit'){ normalizeSplit(); touchProfile(); render(); toast('Split normalised to 100%'); }
+  if(id==='scaleMeals'){ scaleMealsToDaily(); touchProfile(); render(); toast('Meal targets scaled to the daily total'); }
   if(id==='addMeal'){ S.template.push({id:uid(),name:'New meal',t:{p:0,c:0,f:0}}); touchProfile(); render(); }
   if(id==='addFood'){ ask('New food','').then(async n=>{ if(!n) return;
     let f={n,id:uid(),b:'100g',u:'g',p:0,c:0,f:0,k:0,mn:30,mx:300,st:10,role:'protein',use:true};

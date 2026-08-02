@@ -31,17 +31,19 @@ button{cursor:pointer}
 .spacer{flex:1}
 .mini{background:none;border:1px solid var(--line);border-radius:99px;padding:5px 11px;font-size:12px;color:var(--muted)}
 .mini:hover{border-color:var(--muted);color:var(--ink)}
-.sync{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);padding:5px 10px;border:1px solid var(--line);border-radius:99px;background:var(--card)}
-.sdot{width:7px;height:7px;border-radius:99px;background:var(--muted)}
+.acctbtn{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink);padding:6px 13px;border:1px solid var(--line);border-radius:99px;background:var(--card);max-width:230px}
+.acctbtn:hover{border-color:var(--muted)}
+.sdot{width:7px;height:7px;border-radius:99px;background:var(--muted);flex:none}
 .s-ok .sdot{background:var(--ok)} .s-wait .sdot{background:var(--carb)} .s-local .sdot{background:var(--muted)}
+#acctTxt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-.datebar{display:flex;align-items:center;gap:6px;margin:11px 0 0}
+.datebar{display:flex;align-items:center;gap:6px;margin:20px 0 0}
 .datebar input{border:1px solid var(--line);border-radius:8px;padding:5px 9px;background:var(--card);font-family:var(--mono);font-size:12.5px}
 .dnav{border:1px solid var(--line);background:var(--card);border-radius:8px;width:30px;height:30px;color:var(--muted)}
 .dnav:hover{border-color:var(--muted);color:var(--ink)}
 .dlabel{font-size:12.5px;color:var(--muted);margin-left:2px}
 
-.ledger{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:11px 0 10px}
+.ledger{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:11px 0 0}
 .lg{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:9px 11px 10px}
 .lg .lab{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
 .lg .val{font-family:var(--mono);font-size:19px;font-weight:600;letter-spacing:-.03em;line-height:1.25;margin-top:1px}
@@ -151,3 +153,33 @@ th.n{text-align:right}
   .brand img{height:26px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ---- daily target ---- */
+.daily{padding:14px 16px 16px}
+.dhead{display:flex;align-items:center;gap:10px;padding:0 0 12px}
+.card:not(.daily) .dhead{padding:14px 16px 12px}
+.dhead h3{font-family:var(--disp);font-weight:600;font-size:15px;margin:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--paper)}
+.seg button{background:none;border:0;padding:5px 11px;font-size:11.5px;color:var(--muted)}
+.seg button.on{background:var(--card);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(20,28,26,.08)}
+.dgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.dfield{display:flex;flex-direction:column;gap:5px}
+.dlab{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);display:flex;align-items:center;gap:6px}
+.dfield input{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--paper);
+  font-family:var(--mono);font-size:15px;text-align:right;width:100%}
+.dfield input:focus{border-color:var(--pro);background:var(--card)}
+.dfield input:disabled{opacity:.65;background:var(--line2)}
+.kcalfield input{font-size:17px;font-weight:600}
+.dsub{font-size:11px;color:var(--muted);font-family:var(--mono);text-align:right}
+
+/* ---- allocation summary ---- */
+.alloc{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;padding:12px 16px;border-top:1px solid var(--line);font-size:12px}
+.alloclab{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.allocitem{display:inline-flex;align-items:center;gap:5px;color:var(--muted)}
+.allocitem b{color:var(--ink)}
+
+@media (max-width:760px){
+  .dgrid{grid-template-columns:1fr 1fr}
+  .dhead{flex-wrap:wrap}
+  .acctbtn{max-width:150px}
+}
