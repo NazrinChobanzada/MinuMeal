@@ -49,12 +49,27 @@ function dailyGrams(){ const d=S.daily, k=+d.kcal||0;
   return {p:k*(d.split.p/100)/4, c:k*(d.split.c/100)/4, f:k*(d.split.f/100)/9, k}; }
 function allocated(){ const a={p:0,c:0,f:0,k:0};
   S.template.forEach(m=>{a.p+=m.t.p;a.c+=m.t.c;a.f+=m.t.f;a.k+=targetKcal(m.t);}); return a; }
-function setDailyGram(key,v){            // grams entered -> recompute calories and split
-  const g=dailyGrams(); g[key]=Math.max(0,+v||0);
-  const k=g.p*4+g.c*4+g.f*9; if(k<=0) return;
-  S.daily.kcal=Math.round(k);
-  S.daily.split={p:r1(g.p*4/k*100), c:r1(g.c*4/k*100), f:r1(g.f*9/k*100)};
+// Calories are the budget. Move one macro and the other two give way,
+// keeping their ratio to each other, so the split always adds up to 100%.
+function setSplitBalanced(key,pct){
+  const s=S.daily.split, keys=['p','c','f'], others=keys.filter(k=>k!==key);
+  const v=Math.min(100,Math.max(0,+pct||0)), rest=100-v;
+  const restNow=others.reduce((t,k)=>t+s[k],0);
+  const next={p:s.p,c:s.c,f:s.f}; next[key]=v;
+  if(restNow>0) others.forEach(k=>next[k]=s[k]/restNow*rest);
+  else others.forEach(k=>next[k]=rest/2);
+  keys.forEach(k=>next[k]=r1(Math.max(0,next[k])));
+  const drift=r1(100-(next.p+next.c+next.f));          // absorb rounding error
+  if(drift!==0){ const big=next[others[0]]>=next[others[1]]?others[0]:others[1];
+    next[big]=r1(Math.max(0,next[big]+drift)); }
+  S.daily.split=next;
 }
+// grams entered -> same operation, expressed in calories
+function setDailyGram(key,v){
+  const k=+S.daily.kcal||0; if(k<=0) return;
+  setSplitBalanced(key, Math.max(0,+v||0)*(key==='f'?9:4)/k*100);
+}
+
 function normalizeSplit(){ const t=S.daily.split.p+S.daily.split.c+S.daily.split.f; if(t<=0) return;
   const s=S.daily.split; S.daily.split={p:r1(s.p/t*100), c:r1(s.c/t*100), f:r1(s.f/t*100)}; }
 function scaleMealsToDaily(){            // keep each meal's shape, hit the daily total
@@ -424,8 +439,8 @@ function viewTargets(){
       ${seg('segDaily',S.daily.mode,[['pct','% of calories'],['g','grams']])}</div>
     <div class="dgrid">
       <label class="dfield kcalfield"><span class="dlab">Calories</span>
-        <input class="num" type="number" step="10" min="0" data-daily="kcal" value="${r0(S.daily.kcal)}"${byPct?'':' disabled'}>
-        <span class="dsub">${byPct?'kcal per day':'from the macros'}</span></label>
+        <input class="num" type="number" step="10" min="0" data-daily="kcal" value="${r0(S.daily.kcal)}">
+        <span class="dsub">kcal per day</span></label>
       ${macro('p','Protein','p')}${macro('c','Carbs','c')}${macro('f','Fat','f')}
     </div>
     ${byPct&&Math.abs(sum-100)>0.5?`<div class="warn">The split adds up to ${sum}% instead of 100%, so the grams above will not match your calorie goal.
@@ -594,7 +609,7 @@ $('#view').addEventListener('change',e=>{
   if(el.id==='dDate'&&el.value){ goDate(el.value); return; }
   if(el.dataset.daily){ const k=el.dataset.daily, v=+el.value||0;
     if(k==='kcal') S.daily.kcal=Math.max(0,v);
-    else if(S.daily.mode==='pct') S.daily.split[k]=Math.max(0,v);
+    else if(S.daily.mode==='pct') setSplitBalanced(k,v);
     else setDailyGram(k,v);
     touchProfile(); render(); return; }
   const tw=el.closest('.trow[data-m]');

@@ -12,5 +12,5 @@
    security policies in schema.sql.
    NEVER put a service_role or sb_secret_ key in this file.
    ===================================================================== */
-const SUPABASE_URL = "https://mewhojvnidhwvdpcjoux.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind0bmVubmxmbXJqcHZhd3Z0ZGJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1NjM3NDYsImV4cCI6MjEwMTEzOTc0Nn0.HrudkH876-cQ9CB3cqxIZ5pFciz4gjBl5tSmTK2zk6s";
+const SUPABASE_URL = "https://wtnennlfmrjpvawvtdbv.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_hEZCL3sjPlgK_rrsIj_-JA_aiDNq6wT";
