@@ -413,39 +413,62 @@ function buildDialog(mid){
   const m=S.template.find(x=>x.id===mid);
   let kcal=Math.round(targetKcal(m.t))||600;
   let split=splitOf(m.t);
+  let unit='g';                                  // 'g' = type grams, 'pct' = type percentages
   const opts=role=>['<option value="">Any '+ROLE_LABEL[role]+' source</option>'].concat(
     S.foods.filter(f=>f.role===role&&f.use).sort((a,b)=>a.n.localeCompare(b.n))
       .map(f=>`<option value="${f.id}">${esc(f.n)}</option>`)).join('');
   const body=`
-    <div class="field"><label>Calories for this meal</label>
-      <input class="num" type="number" min="0" step="10" data-b="kcal" value="${kcal}"></div>
+    <div class="field"><label>Target for this meal</label>
+      <div class="seg" data-unit>
+        <button data-v="g" class="on">grams</button>
+        <button data-v="pct">% of calories</button>
+      </div></div>
     <div class="dgrid" style="margin-bottom:4px">
       ${['p','c','f'].map((k,i)=>`<label class="dfield"><span class="dlab">
-        <span class="dot d-${k}"></span>${['Protein','Carbs','Fat'][i]} %</span>
-        <input class="num" type="number" min="0" max="100" step="1" data-b="${k}" value="${split[k]}">
+        <span class="dot d-${k}"></span>${['Protein','Carbs','Fat'][i]}</span>
+        <input class="num" type="number" min="0" step="1" data-b="${k}">
         <span class="dsub" data-g="${k}"></span></label>`).join('')}
-      <label class="dfield"><span class="dlab">Total</span>
-        <div class="num" id="bSum" style="padding:8px 10px;text-align:right">100%</div>
-        <span class="dsub">always balanced</span></label>
+      <label class="dfield"><span class="dlab">Calories</span>
+        <input class="num" type="number" min="0" step="10" data-b="kcal" value="${kcal}">
+        <span class="dsub" data-g="kcal"></span></label>
     </div>
     <div class="field" style="margin-top:12px"><label>Protein source</label><select data-src="protein">${opts('protein')}</select></div>
     <div class="field"><label>Carb source</label><select data-src="carb">${opts('carb')}</select></div>
     <div class="field"><label>Fat source</label><select data-src="fat">${opts('fat')}</select></div>
     <div class="field"><label>Extra (optional)</label><select data-src="veg">${opts('veg')}</select></div>
-    <p class="hint" style="margin:0">Leave a source on “Any” and the generator picks one for you. Portions are always solved to hit the target.</p>`;
+    <p class="hint" style="margin:0">Leave a source on “Any” and the generator picks one. Portions are solved to land on the target; they snap to each food’s step size, so expect a percent or two of drift.</p>`;
   const p=modal('Build '+m.name,body,
     [{label:'Cancel',ghost:true,value:null},{label:'Build',solid:true,value:'go'}]);
   const host=$('#mBody');
-  const gramLabels=()=>{ const g=gramsFrom(kcal,split);
-    ['p','c','f'].forEach(k=>{ const el=host.querySelector(`[data-g="${k}"]`); if(el) el.textContent=r1(g[k])+' g';
-      const inp=host.querySelector(`[data-b="${k}"]`); if(inp&&document.activeElement!==inp) inp.value=split[k]; });
-    $('#bSum').textContent=r1(split.p+split.c+split.f)+'%'; };
+  const inp=k=>host.querySelector(`[data-b="${k}"]`);
+  const sub=k=>host.querySelector(`[data-g="${k}"]`);
+  function paint(){
+    const g=gramsFrom(kcal,split);
+    ['p','c','f'].forEach(k=>{
+      const el=inp(k); if(el&&document.activeElement!==el) el.value = unit==='g'?r1(g[k]):split[k];
+      sub(k).textContent = unit==='g'?split[k]+' %':r1(g[k])+' g';
+    });
+    const ke=inp('kcal'); if(ke&&document.activeElement!==ke) ke.value=r0(kcal);
+    ke.disabled = unit==='g';
+    sub('kcal').textContent = unit==='g'?'from the macros':'kcal for this meal';
+  }
   host.addEventListener('change',e=>{
     const k=e.target.dataset.b; if(!k) return;
-    if(k==='kcal') kcal=Math.max(0,+e.target.value||0); else split=balance(split,k,+e.target.value||0);
-    gramLabels();
+    if(k==='kcal'){ kcal=Math.max(0,+e.target.value||0); }
+    else if(unit==='pct'){ split=balance(split,k,+e.target.value||0); }
+    else {                                        // grams typed -> calories follow
+      const g=gramsFrom(kcal,split); g[k]=Math.max(0,+e.target.value||0);
+      const k2=g.p*4+g.c*4+g.f*9;
+      if(k2>0){ kcal=Math.round(k2); split={p:r1(g.p*4/k2*100),c:r1(g.c*4/k2*100),f:r1(g.f*9/k2*100)}; }
+    }
+    paint();
   });
-  gramLabels();
+  host.addEventListener('click',e=>{
+    const b=e.target.closest('.seg button'); if(!b) return;
+    host.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b));
+    unit=b.dataset.v; paint();
+  });
+  paint();
   return p.then(v=>{
     if(v!=='go') return null;
     const picks=['protein','carb','fat','veg']
@@ -571,7 +594,7 @@ function viewTargets(){
     return `<div class="trow" data-m="${m.id}">
       <input type="text" data-k="name" value="${esc(m.name)}">
       ${cell('p')}${cell('c')}${cell('f')}
-      <span class="num hint thide" style="text-align:right">${r0(targetKcal(m.t))} kcal</span>
+      <input class="num" type="number" data-k="kcal" step="10" min="0" value="${r0(targetKcal(m.t))}">
       <button class="ico" data-act="delmeal" title="Delete meal">✕</button></div>`;
   }).join('');
 
@@ -583,7 +606,7 @@ function viewTargets(){
   };
 
   return `<h2>Targets</h2>
-  <p class="hint" style="margin:-4px 0 14px">Calories are the budget: raise one macro and the other two give way to keep the split at 100%. Then decide how much of each goes to which meal. Targets are personal and apply to every day.</p>
+  <p class="hint" style="margin:-4px 0 14px">Calories are the budget: raise one macro and the other two give way to keep the split at 100%. Below, set each meal in grams, as a share of the day, or straight in calories — typing calories rescales that meal and keeps its own macro balance.</p>
 
   <section class="card daily">
     <div class="dhead"><h3>Daily target</h3><span class="spacer"></span>
@@ -601,7 +624,7 @@ function viewTargets(){
   <section class="card" style="margin-top:14px">
     <div class="dhead"><h3>Split across meals</h3><span class="spacer"></span>
       ${seg('segMeal',S.mealUnit,[['g','grams'],['pct','% of daily']])}</div>
-    <div class="trow thead"><span>Meal</span><span style="text-align:right">Protein</span><span style="text-align:right">Carbs</span><span style="text-align:right">Fat</span><span class="thide" style="text-align:right">Calories</span><span></span></div>
+    <div class="trow thead"><span>Meal</span><span style="text-align:right">Protein</span><span style="text-align:right">Carbs</span><span style="text-align:right">Fat</span><span style="text-align:right">Calories</span><span></span></div>
     ${rows}
     <div class="alloc">
       <span class="alloclab">Allocated</span>
@@ -819,6 +842,11 @@ $('#view').addEventListener('change',e=>{
   const tw=el.closest('.trow[data-m]');
   if(tw&&el.dataset.k){ const m=S.template.find(x=>x.id===tw.dataset.m), k=el.dataset.k;
     if(k==='name') m.name=el.value;
+    else if(k==='kcal'){                                   // scale this meal to the calories you typed
+      const want=Math.max(0,+el.value||0);
+      const sp=targetKcal(m.t)>0?splitOf(m.t):S.daily.split;
+      const g=gramsFrom(want,sp); m.t={p:r1(g.p),c:r1(g.c),f:r1(g.f)};
+    }
     else if(S.mealUnit==='pct'){ const d=dailyGrams(); m.t[k]=r1((+el.value||0)/100*d[k]); }
     else m.t[k]=+el.value||0;
     touchProfile(); render(); return; }
