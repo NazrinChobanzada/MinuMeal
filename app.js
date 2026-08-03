@@ -704,11 +704,14 @@ document.addEventListener('click',async e=>{
 function adoptCache(){ const c=loadCache(); if(c&&c.template&&c.foods){ S=Object.assign(defaultState(),c); if(!S.days[S.date]) S.days[S.date]={}; } }
 
 async function onSession(sess){
+  const wasSignedIn=!!SESSION;
   SESSION=sess;
   if(SESSION){
     adoptCache();
-    setStatus('wait');
+    if(!wasSignedIn&&S.tab==='account') S.tab='plan';   // land on the plan, not the sign-in screen
+    setStatus('wait'); render();                        // paint now, sync in the background
     try{ await cloudPull(); }catch(e){ setStatus('wait'); toast('Could not reach the server — continuing with the local copy.'); }
+    if(!wasSignedIn) toast('Signed in');
   } else { HH=HOUSE=null; if(CH){ sb?.removeChannel(CH); CH=null; } adoptCache(); setStatus('local'); }
   render();
 }
