@@ -480,28 +480,61 @@ function viewSaved(){
         <button class="btn ghost" data-act="delsaved">Delete</button></div></section>`;}).join('')}</div>`;
 }
 function viewAccount(){
-  if(!sb) return `<h2>Account</h2><div class="card acct">
-    <p style="margin:0 0 10px">No server configured, so the app runs in <b>local mode</b>: data stays in this browser only, with sync and shared kitchen turned off.</p>
-    <p class="hint" style="margin:0">To turn them on, create a Supabase project, run <code>schema.sql</code>, and fill in the two lines in <code>config.js</code>.</p>
-    <div class="acts" style="margin-top:12px"><button class="btn" id="btnExport">Back up</button></div></div>`;
-  if(!SESSION) return `<h2>Sign in</h2><div class="card acct">
-    <p class="hint" style="margin:0 0 14px">Signing in stores your plans on the server, so your phone and computer see the same data. You can also use the app signed out — everything then stays in this browser.</p>
-    <div class="field"><label>Email</label><input type="email" id="aEmail" autocomplete="email"></div>
-    <div class="field"><label>Password</label><input type="password" id="aPass" autocomplete="current-password"></div>
-    <div class="acts"><button class="btn solid" id="doLogin">Sign in</button><button class="btn" id="doSignup">Create account</button></div>
-    <p class="hint" id="aMsg" style="margin:12px 0 0"></p></div>
-    <div class="acts" style="margin-top:12px"><button class="btn" id="btnExport">Back up</button></div>`;
-  return `<h2>Account</h2><div class="card acct">
-    <div class="field"><label>Signed in as</label><div>${esc(SESSION.user.email||'')}</div></div>
-    <div class="field"><label>Kitchen</label><div>${esc(HOUSE?.name||'—')}</div></div>
-    <div class="field"><label>Invite code</label><div><span class="code">${esc(HOUSE?.invite_code||'—')}</span>
-      <button class="btn ghost" id="copyCode">copy</button></div>
-      <p class="hint" style="margin:6px 0 0">Give this code to a friend and you will share the same food list and saved combinations. Daily plans stay private to each person.</p></div>
-    <div class="field"><label>Join another kitchen</label><input type="text" id="joinCode" placeholder="6-character code"></div>
-    <div class="warn">Joining deletes your kitchen's food list and replaces it with theirs. Back up first.</div>
-    <div class="acts"><button class="btn solid" id="doJoin">Join</button><button class="btn ghost" id="doLogout">Sign out</button></div></div>
-    <div class="acts" style="margin-top:12px"><button class="btn" id="btnExport">Back up</button></div>`;
+  if(!sb) return `<h2>Account</h2>
+    <section class="card acct">
+      <div class="dhead"><h3>Local mode</h3></div>
+      <p style="margin:0 0 10px">No server configured, so data stays in this browser only — sync and shared kitchen are off.</p>
+      <p class="hint" style="margin:0">To turn them on, create a Supabase project, run <code>schema.sql</code>, and fill in the two lines in <code>config.js</code>.</p>
+    </section>
+    <section class="card acct" style="margin-top:14px">
+      <div class="dhead"><h3>Data</h3></div>
+      <p class="hint" style="margin:0 0 10px">Download a copy of every target, day, food and saved combination.</p>
+      <div class="acts" style="margin:0"><button class="btn" id="btnExport">Back up</button></div>
+    </section>`;
+
+  if(!SESSION) return `<h2>Account</h2>
+    <section class="card acct">
+      <div class="dhead"><h3>Sign in</h3></div>
+      <p class="hint" style="margin:0 0 14px">Signing in stores your plans on the server, so your phone and computer see the same data. You can also keep using the app signed out — everything then stays in this browser.</p>
+      <div class="field"><label>Email</label><input type="email" id="aEmail" autocomplete="email"></div>
+      <div class="field"><label>Password</label><input type="password" id="aPass" autocomplete="current-password"></div>
+      <div class="acts" style="margin:0"><button class="btn solid" id="doLogin">Sign in</button><button class="btn" id="doSignup">Create account</button></div>
+      <p class="hint" id="aMsg" style="margin:12px 0 0"></p>
+    </section>
+    <section class="card acct" style="margin-top:14px">
+      <div class="dhead"><h3>Data</h3></div>
+      <p class="hint" style="margin:0 0 10px">Download a copy of every target, day, food and saved combination.</p>
+      <div class="acts" style="margin:0"><button class="btn" id="btnExport">Back up</button></div>
+    </section>`;
+
+  return `<h2>Account</h2>
+    <section class="card acct">
+      <div class="dhead"><h3>Profile</h3></div>
+      <div class="field"><label>Signed in as</label><div>${esc(SESSION.user.email||'')}</div></div>
+      <div class="field"><label>Kitchen name</label>
+        <input type="text" id="houseName" value="${esc(HOUSE?.name||'')}" placeholder="My kitchen"></div>
+      
+      <div class="acts" style="margin:0"><button class="btn" id="doLogout">Sign out</button></div>
+    </section>
+
+    <section class="card acct" style="margin-top:14px">
+      <div class="dhead"><h3>Shared kitchen</h3></div>
+      <div class="field"><label>Your invite code</label>
+        <div><span class="code">${esc(HOUSE?.invite_code||'—')}</span>
+          <button class="btn ghost" id="copyCode">copy</button></div>
+        <p class="hint" style="margin:6px 0 0">Give this code to a friend and you will share the same food list and saved combinations. Daily plans stay private to each person.</p></div>
+      <div class="field"><label>Join another kitchen</label><input type="text" id="joinCode" placeholder="6-character code"></div>
+      <div class="warn">Joining deletes your kitchen's food list and replaces it with theirs. Back up first.</div>
+      <div class="acts" style="margin:0"><button class="btn solid" id="doJoin">Join</button></div>
+    </section>
+
+    <section class="card acct" style="margin-top:14px">
+      <div class="dhead"><h3>Data</h3></div>
+      <p class="hint" style="margin:0 0 10px">Download a copy of every target, day, food and saved combination.</p>
+      <div class="acts" style="margin:0"><button class="btn" id="btnExport">Back up</button></div>
+    </section>`;
 }
+
 function render(){
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===S.tab)));
   paintAccountBtn();
@@ -607,6 +640,11 @@ $('#view').addEventListener('change',e=>{
     save(); if(cloud()) enqueue({op:'food',id:f.id});
     if(k==='b'||k==='n') render(); else ledger(); return; }
   if(el.id==='dDate'&&el.value){ goDate(el.value); return; }
+  if(el.id==='houseName'){ const name=el.value.trim()||'My kitchen';
+    if(HOUSE) HOUSE.name=name;
+    if(cloud()) sb.from('households').update({name}).eq('id',HH)
+      .then(({error})=>toast(error?'Could not rename the kitchen':'Kitchen renamed'));
+    return; }
   if(el.dataset.daily){ const k=el.dataset.daily, v=+el.value||0;
     if(k==='kcal') S.daily.kcal=Math.max(0,v);
     else if(S.daily.mode==='pct') setSplitBalanced(k,v);
