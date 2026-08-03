@@ -184,3 +184,15 @@ th.n{text-align:right}
   .dhead{flex-wrap:wrap}
   .acctbtn{max-width:150px}
 }
+
+/* ---- calorie sanity flag + dialog helpers ---- */
+.kflag{font-family:var(--mono);font-size:10.5px;padding:1px 6px;border-radius:99px;white-space:nowrap}
+.kflag.warn{background:#F6EEDC;color:var(--carb)}
+.kflag.bad{background:#F7E3E1;color:var(--over)}
+.hint.bad{color:var(--over)}
+.modal .seg{width:100%}
+.modal .seg button{flex:1}
+.modal .dgrid{grid-template-columns:repeat(4,1fr);gap:8px}
+.modal .dfield input{font-size:14px;padding:7px 9px}
+.modal select{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:var(--paper)}
+@media (max-width:560px){ .modal .dgrid{grid-template-columns:1fr 1fr} }

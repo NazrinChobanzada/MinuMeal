@@ -36,13 +36,15 @@ let S=defaultState(), ALT={}, foodFilter='', focusSearch=false, status='local';
 
 const items=mid=>{ const d=S.days[S.date]||(S.days[S.date]={}); return d[mid]||(d[mid]=[]); };
 const F=id=>S.foods.find(x=>x.id===id);
-const perUnit=f=> f.b==='100g' ? {p:f.p/100,c:f.c/100,f:f.f/100,k:f.k/100} : {p:f.p,c:f.c,f:f.f,k:f.k};
-function itemMacros(it){ const f=F(it.fid); if(!f) return {p:0,c:0,f:0,k:0}; const u=perUnit(f), q=+it.q||0;
-  return {p:u.p*q,c:u.c*q,f:u.f*q,k:u.k*q}; }
-function mealTotals(mid){ const t={p:0,c:0,f:0,k:0}; items(mid).forEach(it=>{const x=itemMacros(it);t.p+=x.p;t.c+=x.c;t.f+=x.f;t.k+=x.k;}); return t; }
+const perUnit=f=> f.b==='100g' ? {p:f.p/100,c:f.c/100,f:f.f/100,k:f.k/100,fib:(f.fib||0)/100}
+                              : {p:f.p,c:f.c,f:f.f,k:f.k,fib:(f.fib||0)};
+function itemMacros(it){ const f=F(it.fid); if(!f) return {p:0,c:0,f:0,k:0,fib:0}; const u=perUnit(f), q=+it.q||0;
+  return {p:u.p*q,c:u.c*q,f:u.f*q,k:u.k*q,fib:u.fib*q}; }
+function mealTotals(mid){ const t={p:0,c:0,f:0,k:0,fib:0};
+  items(mid).forEach(it=>{const x=itemMacros(it);t.p+=x.p;t.c+=x.c;t.f+=x.f;t.k+=x.k;t.fib+=x.fib;}); return t; }
 const targetKcal=t=>t.p*4+t.c*4+t.f*9;
-function dayTotals(){ const a={p:0,c:0,f:0,k:0},b={p:0,c:0,f:0,k:0};
-  S.template.forEach(m=>{const t=mealTotals(m.id); a.p+=t.p;a.c+=t.c;a.f+=t.f;a.k+=t.k;
+function dayTotals(){ const a={p:0,c:0,f:0,k:0,fib:0},b={p:0,c:0,f:0,k:0};
+  S.template.forEach(m=>{const t=mealTotals(m.id); a.p+=t.p;a.c+=t.c;a.f+=t.f;a.k+=t.k;a.fib+=t.fib;
     b.p+=m.t.p;b.c+=m.t.c;b.f+=m.t.f;b.k+=targetKcal(m.t);}); return {act:a,tgt:b}; }
 // daily target derived from calories + macro split
 function dailyGrams(){ const d=S.daily, k=+d.kcal||0;
@@ -51,25 +53,12 @@ function allocated(){ const a={p:0,c:0,f:0,k:0};
   S.template.forEach(m=>{a.p+=m.t.p;a.c+=m.t.c;a.f+=m.t.f;a.k+=targetKcal(m.t);}); return a; }
 // Calories are the budget. Move one macro and the other two give way,
 // keeping their ratio to each other, so the split always adds up to 100%.
-function setSplitBalanced(key,pct){
-  const s=S.daily.split, keys=['p','c','f'], others=keys.filter(k=>k!==key);
-  const v=Math.min(100,Math.max(0,+pct||0)), rest=100-v;
-  const restNow=others.reduce((t,k)=>t+s[k],0);
-  const next={p:s.p,c:s.c,f:s.f}; next[key]=v;
-  if(restNow>0) others.forEach(k=>next[k]=s[k]/restNow*rest);
-  else others.forEach(k=>next[k]=rest/2);
-  keys.forEach(k=>next[k]=r1(Math.max(0,next[k])));
-  const drift=r1(100-(next.p+next.c+next.f));          // absorb rounding error
-  if(drift!==0){ const big=next[others[0]]>=next[others[1]]?others[0]:others[1];
-    next[big]=r1(Math.max(0,next[big]+drift)); }
-  S.daily.split=next;
-}
+function setSplitBalanced(key,pct){ S.daily.split=balance(S.daily.split,key,pct); }
 // grams entered -> same operation, expressed in calories
 function setDailyGram(key,v){
   const k=+S.daily.kcal||0; if(k<=0) return;
   setSplitBalanced(key, Math.max(0,+v||0)*(key==='f'?9:4)/k*100);
 }
-
 function normalizeSplit(){ const t=S.daily.split.p+S.daily.split.c+S.daily.split.f; if(t<=0) return;
   const s=S.daily.split; S.daily.split={p:r1(s.p/t*100), c:r1(s.c/t*100), f:r1(s.f/t*100)}; }
 function scaleMealsToDaily(){            // keep each meal's shape, hit the daily total
@@ -81,6 +70,33 @@ function scaleMealsToDaily(){            // keep each meal's shape, hit the dail
 }
 
 const r1=n=>Math.round(n*10)/10, r0=n=>Math.round(n);
+// Calories must agree with the macros: 4 kcal/g protein and carbs, 9 kcal/g fat.
+// Real labels round and use slightly different factors, so allow some slack.
+const calcKcal=f=>(+f.p||0)*4+(+f.c||0)*4+(+f.f||0)*9;
+function kcalCheck(f){
+  const want=calcKcal(f), got=+f.k||0, diff=got-want;
+  if(want<=0) return {want,diff,level:got>0?'bad':'ok'};
+  const rel=Math.abs(diff)/want;
+  if(rel<=0.12||Math.abs(diff)<=12) return {want,diff,level:'ok'};
+  return {want,diff,level:rel>0.25?'bad':'warn'};
+}
+// Split one macro against the other two so the three always total 100%.
+function balance(split,key,pct){
+  const keys=['p','c','f'], others=keys.filter(k=>k!==key);
+  const v=Math.min(100,Math.max(0,+pct||0)), rest=100-v;
+  const restNow=others.reduce((t,k)=>t+split[k],0);
+  const next={p:split.p,c:split.c,f:split.f}; next[key]=v;
+  if(restNow>0) others.forEach(k=>next[k]=split[k]/restNow*rest);
+  else others.forEach(k=>next[k]=rest/2);
+  keys.forEach(k=>next[k]=r1(Math.max(0,next[k])));
+  const drift=r1(100-(next.p+next.c+next.f));
+  if(drift!==0){ const big=next[others[0]]>=next[others[1]]?others[0]:others[1];
+    next[big]=r1(Math.max(0,next[big]+drift)); }
+  return next;
+}
+const gramsFrom=(kcal,sp)=>({p:kcal*(sp.p/100)/4, c:kcal*(sp.c/100)/4, f:kcal*(sp.f/100)/9, k:kcal});
+const splitOf=t=>{ const k=t.p*4+t.c*4+t.f*9; return k<=0?{p:40,c:35,f:25}
+  :{p:r1(t.p*4/k*100), c:r1(t.c*4/k*100), f:r1(t.f*9/k*100)}; };
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* ---------------- local cache ---------------- */
@@ -153,21 +169,23 @@ function optimize(foods,tgt){
   return {q,tot:cur()};
 }
 const pick=(arr,n)=>{ const c=[...arr],o=[]; while(o.length<n&&c.length) o.push(c.splice(Math.floor(Math.random()*c.length),1)[0]); return o; };
-function candidates(meal,{shuffle=false}={}){
+function candidates(meal,{shuffle=false,must=[],target=null}={}){
   const cur=items(meal.id), locked=cur.filter(i=>i.lock&&F(i.fid));
   const base={p:0,c:0,f:0}; locked.forEach(i=>{const x=itemMacros(i);base.p+=x.p;base.c+=x.c;base.f+=x.f;});
-  const tgt={p:Math.max(0,meal.t.p-base.p),c:Math.max(0,meal.t.c-base.c),f:Math.max(0,meal.t.f-base.f)};
+  const goal=target||meal.t;
+  const tgt={p:Math.max(0,goal.p-base.p),c:Math.max(0,goal.c-base.c),f:Math.max(0,goal.f-base.f)};
   if(tgt.p+tgt.c+tgt.f<=0) return [];
-  const pool=S.foods.filter(f=>f.use&&!locked.some(l=>l.fid===f.id));
-  if(!pool.length) return [];
+  const pool=S.foods.filter(f=>f.use&&!locked.some(l=>l.fid===f.id)&&!must.some(x=>x.id===f.id));
+  if(!pool.length&&!must.length) return [];
   const byRole=r=>pool.filter(f=>f.role===r);
   const out=[],seen=new Set(),tries=shuffle?60:420;
   for(let t=0;t<tries;t++){
-    const k=2+Math.floor(Math.random()*3);
-    let set=[];
-    if(tgt.p>8) set.push(...pick(byRole('protein'),1));
-    if(tgt.c>8) set.push(...pick(byRole('carb'),1));
-    if(tgt.f>8) set.push(...pick(byRole('fat'),1));
+    const k=Math.max(must.length, 2+Math.floor(Math.random()*3));
+    let set=[...must];
+    const has=r=>set.some(f=>f.role===r);
+    if(tgt.p>8&&!has('protein')) set.push(...pick(byRole('protein'),1));
+    if(tgt.c>8&&!has('carb')) set.push(...pick(byRole('carb'),1));
+    if(tgt.f>8&&!has('fat')) set.push(...pick(byRole('fat'),1));
     if(!set.length) set.push(...pick(pool,1));
     while(set.length<k){ const e=pick(pool,1)[0]; if(!e) break; if(!set.includes(e)) set.push(e); }
     set=set.filter(Boolean); if(!set.length) continue;
@@ -201,8 +219,8 @@ function nextAlt(mid){
 }
 
 /* ---------------- sync ---------------- */
-const fromRow=r=>({id:r.id,n:r.name,b:r.basis,u:r.unit,p:+r.p,c:+r.c,f:+r.f,k:+r.kcal,mn:+r.mn,mx:+r.mx,st:+r.st,role:r.role,use:r.enabled});
-const toRow=f=>({household_id:HH,name:f.n,basis:f.b,unit:f.u,p:f.p,c:f.c,f:f.f,kcal:f.k,mn:f.mn,mx:f.mx,st:f.st,role:f.role,enabled:f.use,updated_at:new Date().toISOString()});
+const fromRow=r=>({id:r.id,n:r.name,b:r.basis,u:r.unit,p:+r.p,c:+r.c,f:+r.f,k:+r.kcal,fib:+(r.fiber||0),mn:+r.mn,mx:+r.mx,st:+r.st,role:r.role,use:r.enabled});
+const toRow=f=>({household_id:HH,name:f.n,basis:f.b,unit:f.u,p:f.p,c:f.c,f:f.f,kcal:f.k,fiber:f.fib||0,mn:f.mn,mx:f.mx,st:f.st,role:f.role,enabled:f.use,updated_at:new Date().toISOString()});
 
 function enqueue(op){
   S.q=S.q||[];
@@ -308,6 +326,134 @@ function subscribe(){
     .subscribe();
 }
 
+
+/* ---------------- food dialog ---------------- */
+const ROLE_LABEL={protein:'protein',carb:'carb',fat:'fat',veg:'veg'};
+function guessRole(f){
+  const tot=(f.p*4)+(f.c*4)+(f.f*9);
+  if(tot<=0) return 'protein';
+  if(f.b==='100g'&&calcKcal(f)<70) return 'veg';
+  return Object.entries({protein:f.p*4/tot,carb:f.c*4/tot,fat:f.f*9/tot}).sort((a,b)=>b[1]-a[1])[0][0];
+}
+function defaultRange(f){
+  if(f.b==='piece') return {mn:1,mx:8,st:1};
+  if(calcKcal(f)>=450) return {mn:5,mx:80,st:5};
+  if(calcKcal(f)<70)  return {mn:50,mx:400,st:10};
+  return {mn:30,mx:350,st:10};
+}
+function foodDialog(existing){
+  const f = existing ? {...existing} : {n:'',b:'100g',u:'g',p:0,c:0,f:0,fib:0,k:0,role:'',use:true};
+  let autoKcal = !existing || kcalCheck(f).level==='ok';
+  const num=(k,lab,step)=>`<label class="dfield"><span class="dlab">${lab}</span>
+    <input class="num" type="number" min="0" step="${step}" data-f="${k}" value="${f[k]||0}"></label>`;
+  const body=`
+    <div class="field"><label>Name</label><input type="text" data-f="n" value="${esc(f.n)}" placeholder="Chicken breast"></div>
+    <div class="field"><label>Values are given per</label>
+      <div class="seg" data-basis>
+        <button data-v="100g"${f.b==='100g'?' class="on"':''}>100 g</button>
+        <button data-v="piece"${f.b==='piece'?' class="on"':''}>1 piece / scoop</button>
+      </div>
+      <input type="text" data-f="u" value="${esc(f.u||'g')}" placeholder="piece, scoop, slice…"
+             style="margin-top:8px;display:${f.b==='piece'?'block':'none'}"></div>
+    <div class="dgrid" style="margin-bottom:10px">
+      ${num('p','Protein g',0.1)}${num('c','Carbs g',0.1)}${num('f','Fat g',0.1)}${num('fib','Fiber g',0.1)}
+    </div>
+    <div class="field" style="margin-bottom:6px"><label>Calories</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="num" type="number" min="0" step="1" data-f="k" value="${f.k||0}" style="flex:1">
+        <label class="hint" style="display:flex;gap:5px;align-items:center;white-space:nowrap">
+          <input type="checkbox" data-auto${autoKcal?' checked':''} style="width:auto"> calculate</label>
+      </div></div>
+    <p class="hint" id="kMsg" style="margin:0"></p>`;
+  const p=modal(existing?'Edit food':'New food',body,
+    [{label:'Cancel',ghost:true,value:null},{label:'Save',solid:true,value:'save'}]);
+  const host=$('#mBody'), saveBtn=()=>$('#mBtns').querySelector('[data-i="1"]');
+  const get=k=>host.querySelector(`[data-f="${k}"]`);
+  const read=()=>({n:get('n').value.trim(), b:host.querySelector('.seg button.on').dataset.v,
+    u:get('u').value.trim()||'g', p:+get('p').value||0, c:+get('c').value||0,
+    f:+get('f').value||0, fib:+get('fib').value||0, k:+get('k').value||0});
+  function refresh(){
+    const v=read(); if(v.b==='100g') v.u='g';
+    if(autoKcal){ get('k').value=Math.round(calcKcal(v)); v.k=calcKcal(v); get('k').disabled=true; }
+    else get('k').disabled=false;
+    const chk=kcalCheck(v), msg=$('#kMsg'), btn=saveBtn();
+    let text='', cls='hint';
+    if(!v.n) text='Give the food a name.';
+    else if(v.p+v.c+v.f<=0) text='Enter at least one macro.';
+    else if(chk.level==='bad') text=`These macros work out to ${r0(chk.want)} kcal, not ${r0(v.k)}. Check the numbers — 4 kcal per gram of protein and carbs, 9 for fat.`;
+    else if(chk.level==='warn') text=`Slightly off: the macros give ${r0(chk.want)} kcal. Fine if that is what the label says.`;
+    else text=`${r0(calcKcal(v))} kcal from ${v.p}p + ${v.c}c + ${v.f}f, per ${v.b==='100g'?'100 g':'1 '+v.u}.`;
+    if(chk.level==='bad'&&v.n&&v.p+v.c+v.f>0) cls='hint bad';
+    msg.className=cls; msg.textContent=text;
+    if(btn) btn.disabled = !v.n || v.p+v.c+v.f<=0 || chk.level==='bad';
+  }
+  host.addEventListener('input',refresh);
+  host.addEventListener('change',e=>{ if(e.target.hasAttribute('data-auto')){ autoKcal=e.target.checked; refresh(); }});
+  host.addEventListener('click',e=>{
+    const b=e.target.closest('.seg button'); if(!b) return;
+    host.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b));
+    get('u').style.display = b.dataset.v==='piece'?'block':'none';
+    if(b.dataset.v==='piece'&&get('u').value==='g') get('u').value='piece';
+    refresh();
+  });
+  refresh();
+  return p.then(v=>{
+    if(v!=='save') return null;
+    const out=read(); if(out.b==='100g') out.u='g';
+    out.role = existing?.role || guessRole(out);
+    Object.assign(out, existing?{mn:existing.mn,mx:existing.mx,st:existing.st}:defaultRange(out));
+    out.use = existing?existing.use:true;
+    out.id = existing?existing.id:uid();
+    return out;
+  });
+}
+
+/* ---------------- build a meal from chosen sources ---------------- */
+function buildDialog(mid){
+  const m=S.template.find(x=>x.id===mid);
+  let kcal=Math.round(targetKcal(m.t))||600;
+  let split=splitOf(m.t);
+  const opts=role=>['<option value="">Any '+ROLE_LABEL[role]+' source</option>'].concat(
+    S.foods.filter(f=>f.role===role&&f.use).sort((a,b)=>a.n.localeCompare(b.n))
+      .map(f=>`<option value="${f.id}">${esc(f.n)}</option>`)).join('');
+  const body=`
+    <div class="field"><label>Calories for this meal</label>
+      <input class="num" type="number" min="0" step="10" data-b="kcal" value="${kcal}"></div>
+    <div class="dgrid" style="margin-bottom:4px">
+      ${['p','c','f'].map((k,i)=>`<label class="dfield"><span class="dlab">
+        <span class="dot d-${k}"></span>${['Protein','Carbs','Fat'][i]} %</span>
+        <input class="num" type="number" min="0" max="100" step="1" data-b="${k}" value="${split[k]}">
+        <span class="dsub" data-g="${k}"></span></label>`).join('')}
+      <label class="dfield"><span class="dlab">Total</span>
+        <div class="num" id="bSum" style="padding:8px 10px;text-align:right">100%</div>
+        <span class="dsub">always balanced</span></label>
+    </div>
+    <div class="field" style="margin-top:12px"><label>Protein source</label><select data-src="protein">${opts('protein')}</select></div>
+    <div class="field"><label>Carb source</label><select data-src="carb">${opts('carb')}</select></div>
+    <div class="field"><label>Fat source</label><select data-src="fat">${opts('fat')}</select></div>
+    <div class="field"><label>Extra (optional)</label><select data-src="veg">${opts('veg')}</select></div>
+    <p class="hint" style="margin:0">Leave a source on “Any” and the generator picks one for you. Portions are always solved to hit the target.</p>`;
+  const p=modal('Build '+m.name,body,
+    [{label:'Cancel',ghost:true,value:null},{label:'Build',solid:true,value:'go'}]);
+  const host=$('#mBody');
+  const gramLabels=()=>{ const g=gramsFrom(kcal,split);
+    ['p','c','f'].forEach(k=>{ const el=host.querySelector(`[data-g="${k}"]`); if(el) el.textContent=r1(g[k])+' g';
+      const inp=host.querySelector(`[data-b="${k}"]`); if(inp&&document.activeElement!==inp) inp.value=split[k]; });
+    $('#bSum').textContent=r1(split.p+split.c+split.f)+'%'; };
+  host.addEventListener('change',e=>{
+    const k=e.target.dataset.b; if(!k) return;
+    if(k==='kcal') kcal=Math.max(0,+e.target.value||0); else split=balance(split,k,+e.target.value||0);
+    gramLabels();
+  });
+  gramLabels();
+  return p.then(v=>{
+    if(v!=='go') return null;
+    const picks=['protein','carb','fat','veg']
+      .map(r=>host.querySelector(`[data-src="${r}"]`).value).filter(Boolean).map(F).filter(Boolean);
+    return {kcal,split,picks};
+  });
+}
+
 /* ---------------- views ---------------- */
 function ledger(){
   const host=$('#ledger'); if(!host) return;
@@ -335,7 +481,7 @@ function mealCard(m){
     const x=itemMacros(it);
     return `<div class="row" data-m="${m.id}" data-i="${i}">
       <div><div class="rname" title="${esc(f.n)}">${esc(f.n)}</div>
-        <span class="rmac"><b class="c-p">${r1(x.p)}p</b> · <b class="c-c">${r1(x.c)}k</b> · <b class="c-f">${r1(x.f)}y</b> · ${r0(x.k)} kcal</span></div>
+        <span class="rmac"><b class="c-p">${r1(x.p)}p</b> · <b class="c-c">${r1(x.c)}c</b> · <b class="c-f">${r1(x.f)}f</b>${x.fib>0.05?' · '+r1(x.fib)+' fib':''} · ${r0(x.k)} kcal</span></div>
       <div class="qty"><button data-act="dec" aria-label="decrease">−</button>
         <input class="num" type="number" inputmode="decimal" data-act="qty" value="${it.q}" step="${f.st}" min="0">
         <button data-act="inc" aria-label="increase">+</button><span class="u">${esc(f.u)}</span></div>
@@ -356,9 +502,10 @@ function mealCard(m){
     <div class="addrow"><select data-act="add"><option value="">+ add food…</option>${opts}</select></div>
     <div class="mtot">${bar('p','P',tot.p,m.t.p)}${bar('c','K',tot.c,m.t.c)}${bar('f','Y',tot.f,m.t.f)}</div>
     <div class="acts">
-      <button class="btn solid" data-act="auto">Auto-fill</button>
-      <button class="btn" data-act="alt">Another option</button>
-      <button class="btn" data-act="shuffle">Shuffle</button>
+      <button class="btn solid" data-act="build">Build…</button>
+      <button class="btn" data-act="auto">Auto-fill</button>
+      <button class="btn ghost" data-act="alt">Another option</button>
+      <button class="btn ghost" data-act="shuffle">Shuffle</button>
       <button class="btn ghost" data-act="savemeal">Save</button>
       <button class="btn ghost" data-act="clear">Clear</button></div></section>`;
 }
@@ -369,7 +516,8 @@ const viewPlan=()=>`<div class="datebar">
     <button class="mini" id="dToday">Today</button>
     <span class="dlabel" id="dLabel"></span></div>
   <div class="ledger" id="ledger"></div>
-  <div class="planhead"><h2 style="margin:0">Today's plan</h2><span class="spacer"></span>
+  <div class="planhead"><h2 style="margin:0">Today's plan</h2>
+    ${dayTotals().act.fib>0.05?`<span class="chip">${r1(dayTotals().act.fib)} g fiber</span>`:''}<span class="spacer"></span>
     <button class="btn solid" id="fillAll">Fill the whole day</button>
     <button class="btn" id="copyPrev">Same as yesterday</button>
     <button class="btn" id="btnShare">Share</button>
@@ -384,19 +532,22 @@ function viewFoods(){
     <td class="n"><input data-k="p" class="num" type="number" step="0.1" value="${f.p}"></td>
     <td class="n"><input data-k="c" class="num" type="number" step="0.1" value="${f.c}"></td>
     <td class="n"><input data-k="f" class="num" type="number" step="0.1" value="${f.f}"></td>
+    <td class="n"><input data-k="fib" class="num" type="number" step="0.1" value="${f.fib||0}"></td>
     <td class="n"><input data-k="k" class="num" type="number" step="1" value="${f.k}"></td>
+    <td>${(()=>{const c=kcalCheck(f); return c.level==='ok'?'' :
+      `<span class="kflag ${c.level}" title="Macros work out to ${r0(c.want)} kcal">${c.diff>0?'+':''}${r0(c.diff)}</span>`;})()}</td>
     <td><select data-k="role">${['protein','carb','fat','veg'].map(r=>`<option value="${r}"${f.role===r?' selected':''}>${({protein:'protein',carb:'carb',fat:'fat',veg:'veg'})[r]}</option>`).join('')}</select></td>
     <td class="n"><input data-k="mn" class="num" type="number" step="1" value="${f.mn}"></td>
     <td class="n"><input data-k="mx" class="num" type="number" step="1" value="${f.mx}"></td>
     <td style="text-align:center"><input data-k="use" type="checkbox"${f.use?' checked':''} style="width:auto"></td>
-    <td><button class="ico" data-act="delfood" title="Delete">✕</button></td></tr>`).join('');
+    <td style="white-space:nowrap"><button class="ico" data-act="editfood" title="Edit">✎</button><button class="ico" data-act="delfood" title="Delete">✕</button></td></tr>`).join('');
   return `<h2>Food list <span class="hint">· ${S.foods.length} entries${cloud()?' · shared kitchen':''}</span></h2>
     <p class="hint" style="margin:-4px 0 12px">Values are per <b>100 g</b> or per <b>1 piece/scoop</b>. <b>Min/Max</b> is the portion range the generator may use; unchecking <b>Use</b> keeps a food out of suggestions.${cloud()?' This list is shared with everyone in your kitchen — edits reach them right away.':''}</p>
     <div class="searchbar"><input id="fq" placeholder="Search…" value="${esc(foodFilter)}"><button class="btn solid" id="addFood">Add food</button></div>
     <div class="tablewrap"><table><thead><tr>
-      <th>Food</th><th>Unit</th><th class="n">Protein</th><th class="n">Carbs</th><th class="n">Fat</th><th class="n">kcal</th>
+      <th>Food</th><th>Unit</th><th class="n">Protein</th><th class="n">Carbs</th><th class="n">Fat</th><th class="n">Fiber</th><th class="n">kcal</th><th></th>
       <th>Role</th><th class="n">Min</th><th class="n">Max</th><th>Use</th><th></th></tr></thead>
-      <tbody>${rows||'<tr><td colspan="11" class="empty">No food matches that search.</td></tr>'}</tbody></table></div>`;
+      <tbody>${rows||'<tr><td colspan="13" class="empty">No food matches that search.</td></tr>'}</tbody></table></div>`;
 }
 function viewTargets(){
   const d=dailyGrams(), a=allocated(), sp=S.daily.split;
@@ -432,7 +583,7 @@ function viewTargets(){
   };
 
   return `<h2>Targets</h2>
-  <p class="hint" style="margin:-4px 0 14px">Start from your daily calories and split them into macros, then decide how much of each goes to which meal. Targets are personal and apply to every day.</p>
+  <p class="hint" style="margin:-4px 0 14px">Calories are the budget: raise one macro and the other two give way to keep the split at 100%. Then decide how much of each goes to which meal. Targets are personal and apply to every day.</p>
 
   <section class="card daily">
     <div class="dhead"><h3>Daily target</h3><span class="spacer"></span>
@@ -513,7 +664,6 @@ function viewAccount(){
       <div class="field"><label>Signed in as</label><div>${esc(SESSION.user.email||'')}</div></div>
       <div class="field"><label>Kitchen name</label>
         <input type="text" id="houseName" value="${esc(HOUSE?.name||'')}" placeholder="My kitchen"></div>
-      
       <div class="acts" style="margin:0"><button class="btn" id="doLogout">Sign out</button></div>
     </section>
 
@@ -534,7 +684,6 @@ function viewAccount(){
       <div class="acts" style="margin:0"><button class="btn" id="btnExport">Back up</button></div>
     </section>`;
 }
-
 function render(){
   document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===S.tab)));
   paintAccountBtn();
@@ -595,6 +744,23 @@ $('#view').addEventListener('click',e=>{
   if(act==='lock'){ const l=items(rowEl.dataset.m); l[+rowEl.dataset.i].lock=!l[+rowEl.dataset.i].lock; touchDay(); render(); return; }
   if(act==='del'){ items(rowEl.dataset.m).splice(+rowEl.dataset.i,1); touchDay(); render(); return; }
   if(act==='auto'||act==='shuffle'){ generate(mealEl.dataset.m,act); return; }
+  if(act==='build'){ const mid=mealEl.dataset.m;
+    buildDialog(mid).then(cfg=>{ if(!cfg) return;
+      const m=S.template.find(x=>x.id===mid);
+      const g=gramsFrom(cfg.kcal,cfg.split);
+      m.t={p:r1(g.p),c:r1(g.c),f:r1(g.f)};                       // the meal target is what you asked for
+      const list=candidates(m,{must:cfg.picks});
+      if(!list.length){ toast('Could not build from those sources.'); touchProfile(); render(); return; }
+      ALT[mid]={list,i:0}; applyCandidate(m,list[0]);
+      touchProfile(); touchDay(); render(); toast('Built to '+r0(cfg.kcal)+' kcal');
+    });
+    return; }
+  if(act==='editfood'){ const id=b.closest('tr').dataset.f, f=F(id);
+    foodDialog(f).then(async out=>{ if(!out) return;
+      Object.assign(f,out);
+      save(); if(cloud()) enqueue({op:'food',id:f.id});
+      render(); toast('Saved'); });
+    return; }
   if(act==='alt'){ nextAlt(mealEl.dataset.m); return; }
   if(act==='clear'){ const mid=mealEl.dataset.m; S.days[S.date][mid]=items(mid).filter(i=>i.lock); touchDay(); render(); return; }
   if(act==='savemeal'){
@@ -695,11 +861,10 @@ document.addEventListener('click',async e=>{
   if(id==='normSplit'){ normalizeSplit(); touchProfile(); render(); toast('Split normalised to 100%'); }
   if(id==='scaleMeals'){ scaleMealsToDaily(); touchProfile(); render(); toast('Meal targets scaled to the daily total'); }
   if(id==='addMeal'){ S.template.push({id:uid(),name:'New meal',t:{p:0,c:0,f:0}}); touchProfile(); render(); }
-  if(id==='addFood'){ ask('New food','').then(async n=>{ if(!n) return;
-    let f={n,id:uid(),b:'100g',u:'g',p:0,c:0,f:0,k:0,mn:30,mx:300,st:10,role:'protein',use:true};
+  if(id==='addFood'){ foodDialog(null).then(async f=>{ if(!f) return;
     if(cloud()){ const {data,error}=await sb.from('foods').insert(toRow(f)).select().maybeSingle();
       if(error){ toast('Could not add — no connection'); return; } f=fromRow(data); }
-    S.foods.unshift(f); foodFilter=''; save(); render(); }); }
+    S.foods.unshift(f); foodFilter=''; save(); render(); toast('Food added'); }); }
   if(id==='resetAll'){ confirmBox('Reset everything',"Targets, today's plan and the food list all go back to their starting state.",'Reset')
     .then(ok=>{ if(!ok) return; const keep=S.tab; S=defaultState(); S.tab=keep;
       touchProfile(); touchDay(); render(); toast('Reset'); }); }
