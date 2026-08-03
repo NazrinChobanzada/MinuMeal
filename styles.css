@@ -128,6 +128,7 @@ th.n{text-align:right}
 
 /* hesap */
 .acct{padding:16px 18px;max-width:520px}
+.acct .dhead{padding:0 0 12px;border-bottom:1px solid var(--line2);margin-bottom:14px}
 .field{margin-bottom:10px}
 .field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:4px}
 .field input{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:var(--paper)}
