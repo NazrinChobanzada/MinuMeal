@@ -197,3 +197,12 @@ th.n{text-align:right}
 .modal .dfield input{font-size:14px;padding:7px 9px}
 .modal select{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:var(--paper)}
 @media (max-width:560px){ .modal .dgrid{grid-template-columns:1fr 1fr} }
+
+/* ---- onboarding wizard ---- */
+.wizprog{display:flex;gap:6px;margin-bottom:16px}
+.wizprog span{flex:1;height:4px;border-radius:3px;background:var(--line2);display:flex}
+.wizprog span.on,.wizprog span.done{background:var(--brand)}
+.wizprog span{font-size:0}
+.seg.wide{display:flex;width:100%}
+.seg.wide button{flex:1;padding:9px 10px;font-size:12.5px}
+.modal .field{margin-bottom:12px}

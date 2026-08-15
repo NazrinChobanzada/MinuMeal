@@ -15,6 +15,7 @@ function defaultState(){
     tab:'plan', date:today(),
     daily:{kcal:1712, split:{p:46,c:22,f:32}, mode:'pct'},   // split = % of calories
     mealUnit:'g',                                           // per-meal entry: 'g' or 'pct'
+    profile:defaultProfile(),
     template:[
       {id:'m1',name:'Breakfast',t:{p:55,c:15,f:20}},
       {id:'m2',name:'Lunch',    t:{p:50,c:55,f:20}},
@@ -147,6 +148,58 @@ function paintAccountBtn(){
   $('#acctTxt').textContent = label.length>22 ? label.slice(0,20)+'…' : label;
 }
 
+
+/* ---------------------------------------------------------------- body profile calculator
+   Reverse-engineered from one worked example in the user's spreadsheet
+   (30yo male, 76kg, 172cm, Sedentary + 4-6 workouts/week, Weight loss / Low,
+   protein Very High, fat Low -> 1690 BMR, 2011 kcal, 198p/57f/177c, 36 fiber).
+   Every formula below reproduces that example exactly. The tiers that example
+   did not exercise (Active/Very Active, other workout counts, other protein/
+   fat/pace levels) are reasonable industry-standard estimates, not verified
+   against the sheet — check BIO_TABLES below if a number looks off; it is
+   the only place this logic lives. */
+const BIO_TABLES = {
+  // BMR x this = daily maintenance calories (TDEE)
+  activityMult: {
+    sedentary:  {'0':1.2, '1-3':1.3, '4-6':1.4, '7+':1.5},   // verified: sedentary + 4-6 = 1.4
+    active:     {'0':1.3, '1-3':1.4, '4-6':1.5, '7+':1.6},
+    veryactive: {'0':1.4, '1-3':1.5, '4-6':1.6, '7+':1.7},
+  },
+  proteinPerKg: {normal:1.6, high:2.2, veryhigh:2.6},        // verified: veryhigh = 2.6
+  fatPerKg:     {minimum:0.5, low:0.75, normal:1.0, high:1.3}, // verified: low = 0.75
+  pacePct:      {verylow:0.10, low:0.15, normal:0.20, high:0.25}, // verified: low = 0.15
+  fiberPer1000: 18,                                          // verified
+  kcalPerKgFat: 7700,                                        // standard estimate, for the timeline option
+};
+function bmr(p){
+  const base=10*p.weightKg+6.25*p.heightCm-5*p.age;
+  return p.sex==='female'? base-161 : base+5;
+}
+function calcTargets(p){
+  const b=bmr(p);
+  const tdee=b*(BIO_TABLES.activityMult[p.activity]?.[p.workouts]??1.2);
+  let pct;
+  if(p.goal!=='maintain'&&p.weightKg>0&&p.targetWeightKg>0&&p.weeks>0){
+    // timeline given -> derive the rate directly instead of a named tier
+    const diff=Math.abs(p.weightKg-p.targetWeightKg);
+    const dailyDelta=diff*BIO_TABLES.kcalPerKgFat/(p.weeks*7);
+    pct=Math.min(0.28, dailyDelta/tdee);                     // clamp to a safe ceiling
+  } else pct = BIO_TABLES.pacePct[p.pace] ?? 0.15;
+  const kcal = p.goal==='lose' ? tdee*(1-pct) : p.goal==='gain' ? tdee*(1+pct) : tdee;
+  const protein = p.weightKg*(BIO_TABLES.proteinPerKg[p.proteinLevel]??1.6);
+  const fat = p.weightKg*(BIO_TABLES.fatPerKg[p.fatLevel]??1.0);
+  const carbKcal = Math.max(0, kcal - protein*4 - fat*9);
+  const carbs = carbKcal/4;
+  const fiber = kcal/1000*BIO_TABLES.fiberPer1000;
+  const k2=protein*4+carbs*4+fat*9;
+  return { bmr:r0(b), tdee:r0(tdee), kcal:r0(kcal), fiber:r0(fiber), pct:r1(pct*100),
+    split:{p:r1(protein*4/k2*100), c:r1(carbs*4/k2*100), f:r1(fat*9/k2*100)} };
+}
+function defaultProfile(){
+  return {done:false, sex:'male', age:30, heightCm:170, weightKg:70, targetWeightKg:70, weeks:null,
+    goal:'maintain', pace:'low', activity:'sedentary', workouts:'1-3', proteinLevel:'normal', fatLevel:'normal'};
+}
+
 /* ---------------- generator ---------------- */
 const W={p:6,c:4,f:9};
 const score=(tot,t)=>W.p*(tot.p-t.p)**2+W.c*(tot.c-t.c)**2+W.f*(tot.f-t.f)**2;
@@ -248,7 +301,7 @@ async function flush(){
 async function runOp(op){
   const now=new Date().toISOString();
   if(op.op==='profile'){
-    const payload={v:2,template:S.template,daily:S.daily,mealUnit:S.mealUnit};
+    const payload={v:3,template:S.template,daily:S.daily,mealUnit:S.mealUnit,profile:S.profile};
     const {error}=await sb.from('profiles').update({meals:payload,updated_at:now}).eq('user_id',SESSION.user.id);
     if(error) throw error; return;
   }
@@ -277,12 +330,13 @@ async function cloudPull(){
 
   const pm=prof.meals;
   if(Array.isArray(pm)&&pm.length) S.template=pm;                       // v1 shape
-  else if(pm&&pm.v===2){                                                 // v2 shape
+  else if(pm&&(pm.v===2||pm.v===3)){                                    // v2/v3 shape
     if(Array.isArray(pm.template)&&pm.template.length) S.template=pm.template;
     if(pm.daily) S.daily=pm.daily;
     if(pm.mealUnit) S.mealUnit=pm.mealUnit;
+    if(pm.v===3&&pm.profile) S.profile=pm.profile;
   } else await sb.from('profiles').update(
-      {meals:{v:2,template:S.template,daily:S.daily,mealUnit:S.mealUnit},updated_at:new Date().toISOString()}).eq('user_id',u);
+      {meals:{v:3,template:S.template,daily:S.daily,mealUnit:S.mealUnit,profile:S.profile},updated_at:new Date().toISOString()}).eq('user_id',u);
 
   const {data:rows}=await sb.from('foods').select('*').eq('household_id',HH);
   if(rows&&rows.length) S.foods=rows.map(fromRow).sort((a,b)=>a.n.localeCompare(b.n));
@@ -477,6 +531,131 @@ function buildDialog(mid){
   });
 }
 
+
+/* ---------------------------------------------------------------- onboarding / profile wizard */
+function onboardingDialog(){
+  return new Promise(resolve=>{
+    let p = {...S.profile};
+    let step = 0;   // 0 goal, 1 personal info, 2 results
+    const steps = ['Your goal','About you','Your targets'];
+
+    function goalStep(){
+      const showPace = p.goal!=='maintain';
+      return `
+        <div class="wizprog">${steps.map((t,i)=>`<span class="${i===step?'on':i<step?'done':''}">${i+1}</span>`).join('')}</div>
+        <div class="field"><label>What are you working towards?</label>
+          <div class="seg wide" data-w="goal">
+            <button data-v="lose"${p.goal==='lose'?' class="on"':''}>Lose weight</button>
+            <button data-v="maintain"${p.goal==='maintain'?' class="on"':''}>Maintain</button>
+            <button data-v="gain"${p.goal==='gain'?' class="on"':''}>Gain weight</button>
+          </div></div>
+        <div id="paceBlock" style="display:${showPace?'block':'none'}">
+          <div class="field"><label>Target weight (kg) <span class="hint">— optional</span></label>
+            <input class="num" type="number" min="0" step="0.5" data-w="targetWeightKg" value="${p.targetWeightKg||''}"></div>
+          <div class="field"><label>In how many weeks? <span class="hint">— optional</span></label>
+            <input class="num" type="number" min="0" step="1" data-w="weeks" value="${p.weeks||''}"></div>
+          <p class="hint" style="margin:0 0 12px">Give both and we work out the pace directly from them (using ~7700 kcal per kg). Leave either blank and you pick a pace instead:</p>
+          <div class="field"><label>Pace</label>
+            <div class="seg wide" data-w="pace">
+              ${[['verylow','Gentle'],['low','Steady'],['normal','Standard'],['high','Faster']].map(([v,l])=>
+                `<button data-v="${v}"${p.pace===v?' class="on"':''}>${l}</button>`).join('')}
+            </div></div>
+        </div>
+        <p class="hint" id="wMsg" style="margin:8px 0 0"></p>`;
+    }
+    function infoStep(){
+      const sel=(k,opts)=>`<select data-w="${k}">${opts.map(([v,l])=>`<option value="${v}"${p[k]===v?' selected':''}>${l}</option>`).join('')}</select>`;
+      return `
+        <div class="wizprog">${steps.map((t,i)=>`<span class="${i===step?'on':i<step?'done':''}">${i+1}</span>`).join('')}</div>
+        <div class="seg wide" data-w="sex" style="margin-bottom:12px">
+          <button data-v="male"${p.sex==='male'?' class="on"':''}>Male</button>
+          <button data-v="female"${p.sex==='female'?' class="on"':''}>Female</button></div>
+        <div class="dgrid" style="margin-bottom:12px">
+          <label class="dfield"><span class="dlab">Age</span><input class="num" type="number" min="10" max="100" data-w="age" value="${p.age}"></label>
+          <label class="dfield"><span class="dlab">Height cm</span><input class="num" type="number" min="100" max="230" data-w="heightCm" value="${p.heightCm}"></label>
+          <label class="dfield"><span class="dlab">Weight kg</span><input class="num" type="number" min="30" max="300" step="0.1" data-w="weightKg" value="${p.weightKg}"></label>
+        </div>
+        <div class="field"><label>Daily activity <span class="hint">(job / general movement)</span></label>
+          ${sel('activity',[['sedentary','Sedentary'],['active','Active'],['veryactive','Very active']])}</div>
+        <div class="field"><label>Workouts per week</label>
+          ${sel('workouts',[['0','0'],['1-3','1–3 days'],['4-6','4–6 days'],['7+','7+ days']])}</div>
+        <div class="field"><label>Protein target</label>
+          ${sel('proteinLevel',[['normal','Normal'],['high','High'],['veryhigh','Very high']])}</div>
+        <div class="field"><label>Fat target</label>
+          ${sel('fatLevel',[['minimum','Minimum'],['low','Low'],['normal','Normal'],['high','High']])}</div>
+        <p class="hint" id="wMsg" style="margin:0"></p>`;
+    }
+    function resultStep(){
+      const t=calcTargets(p);
+      return `
+        <div class="wizprog">${steps.map((t,i)=>`<span class="${i===step?'on':i<step?'done':''}">${i+1}</span>`).join('')}</div>
+        <div class="card daily" style="border:0;background:var(--paper);padding:14px 16px">
+          <div class="dhead" style="border:0;padding:0 0 8px"><h3>Estimated daily target</h3></div>
+          <div class="dgrid">
+            <label class="dfield"><span class="dlab">Calories</span><div class="num" style="padding:8px 10px;text-align:right;font-weight:600;font-size:17px">${t.kcal}</div></label>
+            <label class="dfield"><span class="dlab"><span class="dot d-p"></span>Protein</span><div class="num" style="padding:8px 10px;text-align:right">${t.split.p}%</div></label>
+            <label class="dfield"><span class="dlab"><span class="dot d-c"></span>Carbs</span><div class="num" style="padding:8px 10px;text-align:right">${t.split.c}%</div></label>
+            <label class="dfield"><span class="dlab"><span class="dot d-f"></span>Fat</span><div class="num" style="padding:8px 10px;text-align:right">${t.split.f}%</div></label>
+          </div>
+          <p class="hint" style="margin:10px 0 0">BMR ${t.bmr} kcal · maintenance ~${t.tdee} kcal · ${p.goal==='maintain'?'no adjustment':(p.goal==='lose'?'-':'+')+t.pct+'% '+(p.goal==='lose'?'deficit':'surplus')} · ~${t.fiber} g fiber/day</p>
+        </div>
+        <p class="hint" style="margin:12px 0 0">This is a starting point from standard formulas, not medical advice. Apply it and adjust anything in Targets afterwards — or skip and set numbers yourself.</p>`;
+    }
+
+    function paint(){
+      $('#mTitle').textContent = step===0?'What are you working towards?':step===1?'A bit about you':'Your estimated targets';
+      $('#mBody').innerHTML = step===0?goalStep():step===1?infoStep():resultStep();
+      const back = step>0?{label:'Back'}:{label:'Skip',ghost:true};
+      const fwd  = step<2?{label:'Next',solid:true}:{label:'Apply to my plan',solid:true};
+      $('#mBtns').innerHTML = `<button class="btn ${back.ghost?'ghost':''}" data-nav="back">${back.label}</button>
+        <span class="spacer"></span>
+        ${step===2?'<button class="btn" data-nav="restart">Start over</button>':''}
+        <button class="btn ${fwd.solid?'solid':''}" data-nav="fwd">${fwd.label}</button>`;
+    }
+    function readField(el){
+      const k=el.dataset.w; if(!k) return;
+      if(el.tagName==='SELECT') p[k]=el.value;
+      else if(el.type==='number') p[k]= el.value===''? null : +el.value;
+    }
+    function valid(){
+      if(step===0) return true;
+      if(step===1) return p.age>0&&p.heightCm>0&&p.weightKg>0;
+      return true;
+    }
+    $('#veil').classList.add('show');
+    $('#mBody').addEventListener('change', e=>{ readField(e.target); });
+    $('#mBody').addEventListener('click', e=>{
+      const b=e.target.closest('.seg button'); if(!b) return;
+      const host=b.closest('.seg'); host.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+      p[host.dataset.w]=b.dataset.v; paint();
+    });
+    $('#mBtns').onclick = e=>{
+      const b=e.target.closest('button'); if(!b) return;
+      const nav=b.dataset.nav;
+      if(nav==='back'){ if(step===0){ $('#veil').classList.remove('show'); resolve({...p,done:true,_skipped:true}); return; } step--; paint(); return; }
+      if(nav==='restart'){ step=0; paint(); return; }
+      if(nav==='fwd'){
+        if(!valid()){ const m=$('#wMsg'); if(m) m.textContent='Fill in age, height and weight to continue.'; return; }
+        if(step<2){ step++; paint(); return; }
+        $('#veil').classList.remove('show'); resolve({...p,done:true,_skipped:false});
+      }
+    };
+    paint();
+  });
+}
+async function runOnboarding(){
+  const result = await onboardingDialog();
+  S.profile = {...result}; delete S.profile._skipped;
+  if(!result._skipped){
+    const t=calcTargets(result);
+    S.daily.kcal=t.kcal; S.daily.split=t.split; S.daily.mode='pct';
+    scaleMealsToDaily();
+    toast('Targets updated from your profile');
+  }
+  touchProfile(); render();
+}
+
+
 /* ---------------- views ---------------- */
 function ledger(){
   const host=$('#ledger'); if(!host) return;
@@ -653,6 +832,20 @@ function viewSaved(){
         <button class="btn solid" data-act="load">Load</button>
         <button class="btn ghost" data-act="delsaved">Delete</button></div></section>`;}).join('')}</div>`;
 }
+
+function profileCard(){
+  const p=S.profile, has=p&&p.done&&!p._skipped;
+  const t=has?calcTargets(p):null;
+  return `<section class="card acct" style="margin-top:14px">
+    <div class="dhead"><h3>Profile</h3></div>
+    ${has?`<p class="hint" style="margin:0 0 4px">${p.sex==='male'?'Male':'Female'}, ${p.age}, ${p.heightCm} cm, ${p.weightKg} kg
+      ${p.goal!=='maintain'?' · goal: '+(p.goal==='lose'?'lose weight':'gain weight'):' · maintaining'}</p>
+      <p class="hint" style="margin:0 0 12px">Last estimate: ${t.kcal} kcal · P${t.split.p}% C${t.split.c}% F${t.split.f}%</p>`
+      :`<p class="hint" style="margin:0 0 12px">Not set up yet. Answer a few questions and we will suggest daily calories and macros for you.</p>`}
+    <div class="acts" style="margin:0"><button class="btn solid" id="doProfile">${has?'Redo profile':'Set up profile'}</button></div>
+  </section>`;
+}
+
 function viewAccount(){
   if(!sb) return `<h2>Account</h2>
     <section class="card acct">
@@ -660,6 +853,7 @@ function viewAccount(){
       <p style="margin:0 0 10px">No server configured, so data stays in this browser only — sync and shared kitchen are off.</p>
       <p class="hint" style="margin:0">To turn them on, create a Supabase project, run <code>schema.sql</code>, and fill in the two lines in <code>config.js</code>.</p>
     </section>
+    ${profileCard()}
     <section class="card acct" style="margin-top:14px">
       <div class="dhead"><h3>Data</h3></div>
       <p class="hint" style="margin:0 0 10px">Download a copy of every target, day, food and saved combination.</p>
@@ -675,6 +869,7 @@ function viewAccount(){
       <div class="acts" style="margin:0"><button class="btn solid" id="doLogin">Sign in</button><button class="btn" id="doSignup">Create account</button></div>
       <p class="hint" id="aMsg" style="margin:12px 0 0"></p>
     </section>
+    ${profileCard()}
     <section class="card acct" style="margin-top:14px">
       <div class="dhead"><h3>Data</h3></div>
       <p class="hint" style="margin:0 0 10px">Download a copy of every target, day, food and saved combination.</p>
@@ -701,6 +896,7 @@ function viewAccount(){
       <div class="acts" style="margin:0"><button class="btn solid" id="doJoin">Join</button></div>
     </section>
 
+    ${profileCard()}
     <section class="card acct" style="margin-top:14px">
       <div class="dhead"><h3>Data</h3></div>
       <p class="hint" style="margin:0 0 10px">Download a copy of every target, day, food and saved combination.</p>
@@ -888,6 +1084,7 @@ document.addEventListener('click',async e=>{
   if(id==='dToday') goDate(today());
   if(id==='normSplit'){ normalizeSplit(); touchProfile(); render(); toast('Split normalised to 100%'); }
   if(id==='scaleMeals'){ scaleMealsToDaily(); touchProfile(); render(); toast('Meal targets scaled to the daily total'); }
+  if(id==='doProfile') runOnboarding();
   if(id==='addMeal'){ S.template.push({id:uid(),name:'New meal',t:{p:0,c:0,f:0}}); touchProfile(); render(); }
   if(id==='addFood'){ foodDialog(null).then(async f=>{ if(!f) return;
     if(cloud()){ const {data,error}=await sb.from('foods').insert(toRow(f)).select().maybeSingle();
@@ -949,6 +1146,7 @@ async function onSession(sess){
 
 (async()=>{
   adoptCache(); setStatus(sb?'wait':'local'); render();
+  if(!readShared()&&!S.profile?.done) setTimeout(()=>{ if(!S.profile?.done) runOnboarding(); }, 400);
   if(sb){
     const {data}=await sb.auth.getSession();
     await onSession(data.session||null);
