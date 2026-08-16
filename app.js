@@ -659,17 +659,12 @@ async function runOnboarding(){
 /* ---------------- views ---------------- */
 function ledger(){
   const host=$('#ledger'); if(!host) return;
-  const {act,tgt}=dayTotals();
-  const cell=(cls,lab,a,t,unit)=>{
-    const pct=t>0?Math.min(140,a/t*100):0, over=t>0&&a>t*1.02, d=a-t;
-    const ds=Math.abs(d)<(unit==='kcal'?15:2)?'fit':(d>0?'pos':'neg');
-    return `<div class="lg ${cls} ${over?'over':''}">
-      <div class="lab"><span>${lab}</span><span class="delta ${ds}">${d>0?'+':''}${r0(d)}</span></div>
-      <div class="val">${r0(a)} <small>/ ${r0(t)}${unit==='kcal'?'':' g'}</small></div>
-      <div class="track"><div class="fill" style="width:${Math.min(100,pct)}%"></div><div class="tick" style="left:calc(${t>0?Math.min(100,100*t/Math.max(a,t)):100}% - 1px)"></div></div></div>`;
-  };
-  host.innerHTML=cell('k-cal','Calories',act.k,tgt.k,'kcal')+cell('k-p','Protein',act.p,tgt.p)+
-    cell('k-c','Carbs',act.c,tgt.c)+cell('k-f','Fat',act.f,tgt.f);
+  const {tgt}=dayTotals();                    // target only — what you plan to eat, not what's logged so far
+  const cell=(cls,lab,v,unit)=>`<div class="lg ${cls}">
+      <div class="lab"><span>${lab}</span></div>
+      <div class="val">${r0(v)}${unit==='kcal'?' kcal':' g'}</div></div>`;
+  host.innerHTML=cell('k-cal','Calories',tgt.k,'kcal')+cell('k-p','Protein',tgt.p,'g')+
+    cell('k-c','Carbs',tgt.c,'g')+cell('k-f','Fat',tgt.f,'g');
   const di=$('#dDate'); if(di) di.value=S.date;
   const dl=$('#dLabel');
   if(dl){ const diff=Math.round((new Date(S.date)-new Date(today()))/864e5);
