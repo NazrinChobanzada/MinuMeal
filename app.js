@@ -102,7 +102,8 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 
 /* ---------------- i18n ---------------- */
 let LANG = (()=>{ try{ return localStorage.getItem('minumeal:lang')||'en'; }catch(e){ return 'en'; } })();
-function setLang(l){ LANG=l; try{ localStorage.setItem('minumeal:lang',l); }catch(e){} paintLangBtn(); render(); }
+let ACTIVE_WIZARD_PAINT = null;   // set while the onboarding wizard is open, so switching language repaints it live
+function setLang(l){ LANG=l; try{ localStorage.setItem('minumeal:lang',l); }catch(e){} paintLangBtn(); render(); if(ACTIVE_WIZARD_PAINT) ACTIVE_WIZARD_PAINT(); }
 function paintLangBtn(){
   document.querySelectorAll('#langToggle button').forEach(b=>b.classList.toggle('on', b.dataset.l===LANG));
 }
@@ -499,7 +500,10 @@ async function cloudPull(){
   await flush();
 }
 async function uploadFoods(){
-  const {data,error}=await sb.from('foods').insert(S.foods.map(toRow)).select();
+  // upsert on (household_id, name): if this ever runs twice for the same kitchen
+  // (race on first load, retried sync, etc.) it updates the existing row instead
+  // of inserting a duplicate. Requires the unique constraint added in schema.sql.
+  const {data,error}=await sb.from('foods').upsert(S.foods.map(toRow), {onConflict:'household_id,name'}).select();
   if(error) throw error;
   const byName={}; data.forEach(r=>byName[r.name]=r.id);
   const map={}; S.foods.forEach(f=>{ if(byName[f.n]) map[f.id]=byName[f.n]; });
@@ -768,6 +772,7 @@ function onboardingDialog(){
         ${step===2?'<button class="btn" data-nav="restart">'+t('Start over')+'</button>':''}
         <button class="btn ${fwd.solid?'solid':''}" data-nav="fwd">${fwd.label}</button>`;
     }
+    ACTIVE_WIZARD_PAINT = paint;   // lets the header language toggle repaint this open dialog
     function readField(el){
       const k=el.dataset.w; if(!k) return;
       if(el.tagName==='SELECT') p[k]=el.value;
@@ -788,12 +793,12 @@ function onboardingDialog(){
     $('#mBtns').onclick = e=>{
       const b=e.target.closest('button'); if(!b) return;
       const nav=b.dataset.nav;
-      if(nav==='back'){ if(step===0){ $('#veil').classList.remove('show'); resolve({...p,done:true,_skipped:true}); return; } step--; paint(); return; }
+      if(nav==='back'){ if(step===0){ $('#veil').classList.remove('show'); ACTIVE_WIZARD_PAINT=null; resolve({...p,done:true,_skipped:true}); return; } step--; paint(); return; }
       if(nav==='restart'){ step=0; paint(); return; }
       if(nav==='fwd'){
         if(!valid()){ const m=$('#wMsg'); if(m) m.textContent=t('Fill in age, height and weight to continue.'); return; }
         if(step<2){ step++; paint(); return; }
-        $('#veil').classList.remove('show'); resolve({...p,done:true,_skipped:false});
+        $('#veil').classList.remove('show'); ACTIVE_WIZARD_PAINT=null; resolve({...p,done:true,_skipped:false});
       }
     };
     paint();
