@@ -207,3 +207,9 @@ th.n{text-align:right}
 .seg.wide{display:flex;width:100%}
 .seg.wide button{flex:1;padding:9px 10px;font-size:12.5px}
 .modal .field{margin-bottom:12px}
+
+/* ---- language toggle ---- */
+.langtoggle{display:inline-flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;background:var(--card)}
+.langtoggle button{background:none;border:0;padding:5px 10px;font-size:11px;font-family:var(--mono);color:var(--muted);letter-spacing:.03em}
+.langtoggle button.on{background:var(--brand);color:#fff;font-weight:600}
+@media (max-width:760px){ .langtoggle button{padding:5px 8px} }

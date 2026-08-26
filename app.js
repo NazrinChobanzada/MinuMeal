@@ -100,6 +100,156 @@ const splitOf=t=>{ const k=t.p*4+t.c*4+t.f*9; return k<=0?{p:40,c:35,f:25}
   :{p:r1(t.p*4/k*100), c:r1(t.c*4/k*100), f:r1(t.f*9/k*100)}; };
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
+/* ---------------- i18n ---------------- */
+let LANG = (()=>{ try{ return localStorage.getItem('minumeal:lang')||'en'; }catch(e){ return 'en'; } })();
+function setLang(l){ LANG=l; try{ localStorage.setItem('minumeal:lang',l); }catch(e){} paintLangBtn(); render(); }
+function paintLangBtn(){
+  document.querySelectorAll('#langToggle button').forEach(b=>b.classList.toggle('on', b.dataset.l===LANG));
+}
+// Static UI text: t('exact English string') looks up RU, falls back to the English key itself.
+const RU = {
+  'Sign in':'Войти','Local mode':'Локальный режим','Account':'Аккаунт',
+  'Plan':'План','Foods':'Продукты','Targets':'Цели','Saved':'Сохранённое',
+  'Share plan':'Поделиться планом','Back up':'Резервная копия',
+  'previous day':'предыдущий день','next day':'следующий день','Today':'Сегодня',
+  'today':'сегодня','yesterday':'вчера','tomorrow':'завтра',
+  'Calories':'Калории','Protein':'Белки','Carbs':'Углеводы','Fat':'Жиры','Fiber':'Клетчатка',
+  "Today's plan":'План на сегодня','Fill the whole day':'Заполнить весь день',
+  'Same as yesterday':'Как вчера','Share':'Поделиться','Copy as text':'Копировать как текст',
+  'Build…':'Собрать…','Auto-fill':'Автозаполнение','Another option':'Другой вариант',
+  'Shuffle':'Перемешать','Save':'Сохранить','Clear':'Очистить',
+  'Empty — add something below or fill it automatically.':'Пусто — добавьте продукт ниже или заполните автоматически.',
+  '+ add food…':'+ добавить продукт…','decrease':'уменьшить','increase':'увеличить',
+  'Locked':'Закреплено','Lock':'Закрепить','Remove':'Удалить',
+  'Food list':'Список продуктов','entries':'записей','shared kitchen':'общая кухня',
+  'Values are per':'Значения указаны на','100 g':'100 г','1 piece/scoop':'1 шт./мерную ложку',
+  'is the portion range the generator may use; unchecking':'— диапазон порций, который может использовать генератор; если снять галочку',
+  'Search…':'Поиск…','Add food':'Добавить продукт',
+  'Food':'Продукт','Unit':'Единица','piece/scoop':'шт./ложка',
+  'Role':'Роль','Min':'Мин','Max':'Макс','Use':'Учитывать',
+  'No food matches that search.':'Ничего не найдено.',
+  'Edit':'Изменить','Delete':'Удалить',
+  'protein':'белок','carb':'углевод','fat':'жир','veg':'овощ',
+  'Daily target':'Дневная цель','% of calories':'% от калорий','grams':'граммы',
+  'kcal per day':'ккал в день',
+  'The split adds up to':'Сумма долей —','instead of 100%, so the grams above will not match your calorie goal.':'а не 100%, поэтому граммы выше не совпадут с целью по калориям.',
+  'Normalise to 100%':'Нормализовать до 100%',
+  'Split across meals':'Распределение по приёмам пищи','% of daily':'% от дня',
+  'Meal':'Приём пищи',
+  'Allocated':'Распределено','protein ':'белок ','carbs':'углеводы','fat ':'жир ',
+  'Fit meals to daily target':'Подогнать приёмы под дневную цель',
+  'Add meal':'Добавить приём пищи','Reset everything':'Сбросить всё',
+  'Delete meal':'Удалить приём пищи',
+  'Saved combinations':'Сохранённые комбинации',
+  'Nothing saved yet. Hit':'Пока ничего не сохранено. Нажмите','on a meal you like in the Plan tab.':'на понравившемся приёме пищи на вкладке «План».',
+  'The foods in this combination were deleted from the list.':'Продукты из этой комбинации были удалены из списка.',
+  'Load':'Загрузить',
+  'Profile':'Профиль','Not set up yet. Answer a few questions and we will suggest daily calories and macros for you.':'Пока не настроено. Ответьте на несколько вопросов, и мы предложим дневные калории и БЖУ.',
+  'Redo profile':'Заполнить заново','Set up profile':'Настроить профиль',
+  'Male':'Мужской','Female':'Женский','goal: lose weight':'цель: снижение веса','goal: gain weight':'цель: набор веса','maintaining':'поддержание',
+  'Last estimate':'Последний расчёт',
+  'No server configured, so data stays in this browser only — sync and shared kitchen are off.':'Сервер не настроен, данные хранятся только в этом браузере — синхронизация и общая кухня отключены.',
+  'To turn them on, create a Supabase project, run':'Чтобы включить их, создайте проект Supabase, выполните','and fill in the two lines in':'и заполните две строки в',
+  'Data':'Данные','Download a copy of every target, day, food and saved combination.':'Скачать копию всех целей, дней, продуктов и сохранённых комбинаций.',
+  'Signing in stores your plans on the server, so your phone and computer see the same data. You can also keep using the app signed out — everything then stays in this browser.':'Вход сохраняет ваши планы на сервере, поэтому телефон и компьютер видят одни и те же данные. Можно пользоваться и без входа — тогда всё останется в этом браузере.',
+  'Email':'Email','Password':'Пароль','Create account':'Создать аккаунт','Forgot password?':'Забыли пароль?',
+  'Email and password are required.':'Введите email и пароль.',
+  'Account created. Click the confirmation link in your email, then sign in.':'Аккаунт создан. Перейдите по ссылке в письме и затем войдите.',
+  'Signed in as':'Вход выполнен как','Kitchen name':'Название кухни','My kitchen':'Моя кухня','Sign out':'Выйти',
+  'Shared kitchen':'Общая кухня','Your invite code':'Ваш код приглашения','copy':'копировать',
+  'Give this code to a friend and you will share the same food list and saved combinations. Daily plans stay private to each person.':'Дайте этот код другу — вы будете делиться списком продуктов и сохранёнными комбинациями. Планы на день у каждого свои.',
+  'Join another kitchen':'Присоединиться к другой кухне','6-character code':'код из 6 символов',
+  "Joining deletes your kitchen's food list and replaces it with theirs. Back up first.":'При присоединении список продуктов вашей кухни будет удалён и заменён их списком. Сначала сделайте резервную копию.',
+  'Join':'Присоединиться',
+  'What are you working towards?':'К чему вы стремитесь?',
+  'Lose weight':'Похудеть','Maintain':'Поддерживать вес','Gain weight':'Набрать вес',
+  'Target weight (kg)':'Целевой вес (кг)','— optional':'— необязательно',
+  'In how many weeks?':'За сколько недель?',
+  'Give both and we work out the pace directly from them (using ~7700 kcal per kg). Leave either blank and you pick a pace instead:':'Заполните оба поля — и мы рассчитаем темп напрямую (используя ~7700 ккал на кг). Оставьте пустыми — выберите темп сами:',
+  'Pace':'Темп','Gentle':'Мягкий','Steady':'Умеренный','Standard':'Стандартный','Faster':'Быстрый',
+  'A bit about you':'Немного о вас',
+  'Age':'Возраст','Height cm':'Рост, см','Weight kg':'Вес, кг',
+  'Daily activity':'Дневная активность','(job / general movement)':'(работа / общая активность)',
+  'Sedentary':'Малоподвижный','Active':'Активный','Very active':'Очень активный',
+  'Workouts per week':'Тренировок в неделю','days':'дней',
+  'Protein target':'Цель по белку','Normal':'Средний','High':'Высокий','Very high':'Очень высокий',
+  'Fat target':'Цель по жирам','Minimum':'Минимум','Low':'Низкий',
+  'Your estimated targets':'Ваши расчётные цели','Estimated daily target':'Расчётная дневная цель',
+  'no adjustment':'без корректировки','deficit':'дефицит','surplus':'профицит',
+  'g fiber/day':'г клетчатки/день','maintenance':'поддержание',
+  '% of calories':'% от калорий','grams':'граммы','from the macros':'из БЖУ','kcal for this meal':'ккал на этот приём',
+  'No profile row — did schema.sql run?':'Нет строки профиля — выполнялся ли schema.sql?',
+  'This is a starting point from standard formulas, not medical advice. Apply it and adjust anything in Targets afterwards — or skip and set numbers yourself.':'Это отправная точка по стандартным формулам, а не медицинская рекомендация. Примените и при желании скорректируйте на вкладке «Цели» — или пропустите и задайте цифры сами.',
+  'Fill in age, height and weight to continue.':'Укажите возраст, рост и вес, чтобы продолжить.',
+  'Back':'Назад','Skip':'Пропустить','Next':'Далее','Apply to my plan':'Применить к моему плану','Start over':'Начать заново',
+  'Your goal':'Ваша цель','About you':'О вас','Your targets':'Ваши цели',
+  'Name':'Название','Chicken breast':'Куриная грудка',
+  'Values are given per':'Значения указаны на',
+  'piece, scoop, slice…':'шт., ложка, ломтик…',
+  'Protein g':'Белки, г','Carbs g':'Углеводы, г','Fat g':'Жиры, г','Fiber g':'Клетчатка, г',
+  'calculate':'рассчитать','Give the food a name.':'Введите название продукта.',
+  'Enter at least one macro.':'Введите хотя бы один макронутриент.',
+  'Edit food':'Изменить продукт','New food':'Новый продукт','Cancel':'Отмена','OK':'ОК','Yes':'Да',
+  'Target for this meal':'Цель для этого приёма','Any':'Любой','source':'источник',
+  'Protein source':'Источник белка','Carb source':'Источник углеводов','Fat source':'Источник жиров',
+  'Extra (optional)':'Дополнительно (необязательно)',
+  'Leave a source on “Any” and the generator picks one. Portions are solved to land on the target; they snap to each food’s step size, so expect a percent or two of drift.':'Оставьте «Любой» — и генератор выберет сам. Порции подбираются под цель и округляются до шага продукта, так что возможно небольшое отклонение.',
+  'Build':'Собрать',
+  'Copied to clipboard':'Скопировано в буфер обмена','kcal':'ккал','g':'г','cm':'см','kg':'кг',
+  'Macros work out to':'По макросам получается','or per':'или на','1 piece/scoop':'1 шт./ложку',
+  'keeps a food out of suggestions.':'исключает продукт из подборок.',
+  'This list is shared with everyone in your kitchen — edits reach them right away.':'Список общий для всей кухни — изменения видны сразу всем.',
+  'Copy failed — select the text manually.':'Не удалось скопировать — выделите текст вручную.',
+  'This meal has no target yet — set one on the Targets tab.':'У этого приёма пока нет цели — задайте её на вкладке «Цели».',
+  'No suitable foods found.':'Подходящих продуктов не найдено.',
+  'Could not build from those sources.':'Не удалось собрать из этих продуктов.',
+  'Fill the meal first.':'Сначала заполните приём пищи.',
+  'Save combination':'Сохранить комбинацию',
+  'Could not save — no connection':'Не удалось сохранить — нет соединения',
+  'Saved':'Сохранено',
+  'Delete food':'Удалить продукт',
+  'will be removed from the list and from every meal using it.':'будет удалён из списка и из всех приёмов пищи, где используется.',
+  'and its targets will be deleted.':'и его цели будут удалены.',
+  'Loaded':'Загружено',
+  'Could not add — no connection':'Не удалось добавить — нет соединения','Food added':'Продукт добавлен',
+  "Targets, today's plan and the food list all go back to their starting state.":'Цели, план на сегодня и список продуктов вернутся к исходному состоянию.',
+  'Reset':'Сбросить',
+  'Day filled':'День заполнен',
+  'No plan saved for yesterday.':'За вчера план не сохранён.',
+  "Yesterday's plan copied":'План вчерашнего дня скопирован',
+  'Split normalised to 100%':'Доли нормализованы до 100%',
+  'Meal targets scaled to the daily total':'Цели приёмов пищи подогнаны под дневную сумму',
+  'New meal':'Новый приём пищи',
+  'Share plan':'Поделиться планом',
+  "This link carries the day's plan and targets — whoever opens it sees the same plan in their own Minumeal.":'Эта ссылка содержит план и цели дня — тот, кто её откроет, увидит тот же план в своём Minumeal.',
+  'Close':'Закрыть','Copy link':'Копировать ссылку',
+  'Every target, day, food and saved combination.':'Все цели, дни, продукты и сохранённые комбинации.',
+  'Copy':'Копировать','Download':'Скачать','Backup downloaded':'Резервная копия скачана',
+  'Download blocked — you can copy the text instead.':'Скачивание заблокировано — можно скопировать текст.',
+  'Could not rename the kitchen':'Не удалось переименовать кухню','Kitchen renamed':'Кухня переименована',
+  'Targets updated from your profile':'Цели обновлены на основе вашего профиля',
+  'Reset password':'Сброс пароля','Enter your email':'Введите email',
+  'has an account, a reset link is on its way — check your inbox.':'— если такой аккаунт есть, ссылка для сброса уже отправлена, проверьте почту.',
+  'Join kitchen':'Присоединиться к кухне',
+  'Your own food list will be deleted and replaced with theirs. Continue?':'Ваш список продуктов будет удалён и заменён их списком. Продолжить?',
+  'Joined':'Готово, вы присоединились',
+  'Set a new password':'Новый пароль',
+  'Choose a new password for your account.':'Выберите новый пароль для вашего аккаунта.',
+  'New password':'Новый пароль','Confirm password':'Подтвердите пароль',
+  'Password must be at least 6 characters':'Пароль должен быть не менее 6 символов',
+  'Passwords do not match':'Пароли не совпадают','Password updated':'Пароль обновлён',
+  'Could not reach the server — continuing with the local copy.':'Не удалось связаться с сервером — продолжаем с локальной копией.',
+  'Signed in':'Вход выполнен',
+  'Shared plan':'Общий план',
+  "Someone shared a Minumeal plan. Load it? It replaces today's plan and your targets.":'Кто-то поделился планом Minumeal. Загрузить? Он заменит план на сегодня и ваши цели.',
+  'Shared plan loaded':'Общий план загружен',
+  'Synced':'Синхронизировано','Changes pending':'Ожидает синхронизации','Offline':'Офлайн',
+  'Calories are the budget: raise one macro and the other two give way to keep the split at 100%. Below, set each meal in grams, as a share of the day, or straight in calories — typing calories rescales that meal and keeps its own macro balance.':'Калории — это бюджет: увеличивая одну долю, вы уменьшаете две другие, чтобы сумма всегда была 100%. Ниже задайте каждый приём пищи в граммах, в процентах от дня или сразу в калориях — ввод калорий пересчитывает этот приём, сохраняя его баланс БЖУ.',
+};
+function t(key){ return LANG==='ru' ? (RU[key]||key) : key; }
+
+
+
 /* ---------------- local cache ---------------- */
 const cacheKey=()=>'minumeal:v3:'+(SESSION?SESSION.user.id:'local');
 const hasLS=(()=>{ try{ localStorage.setItem('__mm','1'); localStorage.removeItem('__mm'); return true; }catch(e){ return false; } })();
@@ -142,9 +292,9 @@ function setStatus(s){ status=s; paintAccountBtn(); }
 function paintAccountBtn(){
   const el=$('#btnAccount'); if(!el) return;
   el.className='acctbtn '+({ok:'s-ok',wait:'s-wait',local:'s-local'}[status]||'s-local');
-  const label = SESSION ? (SESSION.user.email||'Account')
-              : (sb ? 'Sign in' : 'Local mode');
-  el.title = SESSION ? ({ok:'Synced',wait:'Changes pending',local:'Offline'}[status]) : label;
+  const label = SESSION ? (SESSION.user.email||t('Account'))
+              : (sb ? t('Sign in') : t('Local mode'));
+  el.title = SESSION ? ({ok:t('Synced'),wait:t('Changes pending'),local:t('Offline')}[status]) : label;
   $('#acctTxt').textContent = label.length>22 ? label.slice(0,20)+'…' : label;
 }
 
@@ -262,13 +412,13 @@ function applyCandidate(meal,cand){
 function generate(mid,mode){
   const m=S.template.find(x=>x.id===mid);
   const list=candidates(m,{shuffle:mode==='shuffle'});
-  if(!list.length){ toast(m.t.p+m.t.c+m.t.f<=0?'This meal has no target yet — set one on the Targets tab.':'No suitable foods found.'); return; }
+  if(!list.length){ toast(m.t.p+m.t.c+m.t.f<=0?t('This meal has no target yet — set one on the Targets tab.'):t('No suitable foods found.')); return; }
   ALT[mid]={list,i:0}; applyCandidate(m,list[0]); touchDay(); render();
 }
 function nextAlt(mid){
   const a=ALT[mid]; if(!a||a.list.length<2){ generate(mid,'auto'); return; }
   a.i=(a.i+1)%a.list.length; applyCandidate(S.template.find(x=>x.id===mid),a.list[a.i]); touchDay(); render();
-  toast(`Option ${a.i+1} of ${a.list.length}`);
+  toast(LANG==='ru'?`Вариант ${a.i+1} из ${a.list.length}`:`Option ${a.i+1} of ${a.list.length}`);
 }
 
 /* ---------------- sync ---------------- */
@@ -324,7 +474,7 @@ async function cloudPull(){
   let prof=(await sb.from('profiles').select('*').eq('user_id',u).maybeSingle()).data;
   if(!prof){ await new Promise(r=>setTimeout(r,1200));
     prof=(await sb.from('profiles').select('*').eq('user_id',u).maybeSingle()).data; }
-  if(!prof) throw new Error('No profile row — did schema.sql run?');
+  if(!prof) throw new Error(t('No profile row — did schema.sql run?'));
   HH=prof.household_id;
   HOUSE=(await sb.from('households').select('*').eq('id',HH).maybeSingle()).data;
 
@@ -398,29 +548,29 @@ function defaultRange(f){
 function foodDialog(existing){
   const f = existing ? {...existing} : {n:'',b:'100g',u:'g',p:0,c:0,f:0,fib:0,k:0,role:'',use:true};
   let autoKcal = !existing || kcalCheck(f).level==='ok';
-  const num=(k,lab,step)=>`<label class="dfield"><span class="dlab">${lab}</span>
+  const num=(k,lab,step)=>`<label class="dfield"><span class="dlab">${t(lab)}</span>
     <input class="num" type="number" min="0" step="${step}" data-f="${k}" value="${f[k]||0}"></label>`;
   const body=`
-    <div class="field"><label>Name</label><input type="text" data-f="n" value="${esc(f.n)}" placeholder="Chicken breast"></div>
-    <div class="field"><label>Values are given per</label>
+    <div class="field"><label>${t('Name')}</label><input type="text" data-f="n" value="${esc(f.n)}" placeholder="${t('Chicken breast')}"></div>
+    <div class="field"><label>${t('Values are given per')}</label>
       <div class="seg" data-basis>
-        <button data-v="100g"${f.b==='100g'?' class="on"':''}>100 g</button>
-        <button data-v="piece"${f.b==='piece'?' class="on"':''}>1 piece / scoop</button>
+        <button data-v="100g"${f.b==='100g'?' class="on"':''}>100 ${t('g')}</button>
+        <button data-v="piece"${f.b==='piece'?' class="on"':''}>${t('1 piece/scoop')}</button>
       </div>
-      <input type="text" data-f="u" value="${esc(f.u||'g')}" placeholder="piece, scoop, slice…"
+      <input type="text" data-f="u" value="${esc(f.u||'g')}" placeholder="${t('piece, scoop, slice…')}"
              style="margin-top:8px;display:${f.b==='piece'?'block':'none'}"></div>
     <div class="dgrid" style="margin-bottom:10px">
       ${num('p','Protein g',0.1)}${num('c','Carbs g',0.1)}${num('f','Fat g',0.1)}${num('fib','Fiber g',0.1)}
     </div>
-    <div class="field" style="margin-bottom:6px"><label>Calories</label>
+    <div class="field" style="margin-bottom:6px"><label>${t('Calories')}</label>
       <div style="display:flex;gap:8px;align-items:center">
         <input class="num" type="number" min="0" step="1" data-f="k" value="${f.k||0}" style="flex:1">
         <label class="hint" style="display:flex;gap:5px;align-items:center;white-space:nowrap">
-          <input type="checkbox" data-auto${autoKcal?' checked':''} style="width:auto"> calculate</label>
+          <input type="checkbox" data-auto${autoKcal?' checked':''} style="width:auto"> ${t('calculate')}</label>
       </div></div>
     <p class="hint" id="kMsg" style="margin:0"></p>`;
-  const p=modal(existing?'Edit food':'New food',body,
-    [{label:'Cancel',ghost:true,value:null},{label:'Save',solid:true,value:'save'}]);
+  const p=modal(existing?t('Edit food'):t('New food'),body,
+    [{label:t('Cancel'),ghost:true,value:null},{label:t('Save'),solid:true,value:'save'}]);
   const host=$('#mBody'), saveBtn=()=>$('#mBtns').querySelector('[data-i="1"]');
   const get=k=>host.querySelector(`[data-f="${k}"]`);
   const read=()=>({n:get('n').value.trim(), b:host.querySelector('.seg button.on').dataset.v,
@@ -432,11 +582,17 @@ function foodDialog(existing){
     else get('k').disabled=false;
     const chk=kcalCheck(v), msg=$('#kMsg'), btn=saveBtn();
     let text='', cls='hint';
-    if(!v.n) text='Give the food a name.';
-    else if(v.p+v.c+v.f<=0) text='Enter at least one macro.';
-    else if(chk.level==='bad') text=`These macros work out to ${r0(chk.want)} kcal, not ${r0(v.k)}. Check the numbers — 4 kcal per gram of protein and carbs, 9 for fat.`;
-    else if(chk.level==='warn') text=`Slightly off: the macros give ${r0(chk.want)} kcal. Fine if that is what the label says.`;
-    else text=`${r0(calcKcal(v))} kcal from ${v.p}p + ${v.c}c + ${v.f}f, per ${v.b==='100g'?'100 g':'1 '+v.u}.`;
+    if(!v.n) text=t('Give the food a name.');
+    else if(v.p+v.c+v.f<=0) text=t('Enter at least one macro.');
+    else if(chk.level==='bad') text = LANG==='ru'
+      ? `По этим макросам получается ${r0(chk.want)} ккал, а не ${r0(v.k)}. Проверьте цифры — 4 ккал на грамм белка и углеводов, 9 на грамм жира.`
+      : `These macros work out to ${r0(chk.want)} kcal, not ${r0(v.k)}. Check the numbers — 4 kcal per gram of protein and carbs, 9 for fat.`;
+    else if(chk.level==='warn') text = LANG==='ru'
+      ? `Небольшое расхождение: по макросам ${r0(chk.want)} ккал. Это нормально, если так указано на этикетке.`
+      : `Slightly off: the macros give ${r0(chk.want)} kcal. Fine if that is what the label says.`;
+    else text = LANG==='ru'
+      ? `${r0(calcKcal(v))} ккал из ${v.p}б + ${v.c}у + ${v.f}ж, на ${v.b==='100g'?'100 г':'1 '+v.u}.`
+      : `${r0(calcKcal(v))} kcal from ${v.p}p + ${v.c}c + ${v.f}f, per ${v.b==='100g'?'100 g':'1 '+v.u}.`;
     if(chk.level==='bad'&&v.n&&v.p+v.c+v.f>0) cls='hint bad';
     msg.className=cls; msg.textContent=text;
     if(btn) btn.disabled = !v.n || v.p+v.c+v.f<=0 || chk.level==='bad';
@@ -468,31 +624,31 @@ function buildDialog(mid){
   let kcal=Math.round(targetKcal(m.t))||600;
   let split=splitOf(m.t);
   let unit='g';                                  // 'g' = type grams, 'pct' = type percentages
-  const opts=role=>['<option value="">Any '+ROLE_LABEL[role]+' source</option>'].concat(
+  const opts=role=>['<option value="">'+t('Any')+' '+t(ROLE_LABEL[role])+' '+t('source')+'</option>'].concat(
     S.foods.filter(f=>f.role===role&&f.use).sort((a,b)=>a.n.localeCompare(b.n))
       .map(f=>`<option value="${f.id}">${esc(f.n)}</option>`)).join('');
   const body=`
-    <div class="field"><label>Target for this meal</label>
+    <div class="field"><label>${t('Target for this meal')}</label>
       <div class="seg" data-unit>
-        <button data-v="g" class="on">grams</button>
-        <button data-v="pct">% of calories</button>
+        <button data-v="g" class="on">${t('grams')}</button>
+        <button data-v="pct">${t('% of calories')}</button>
       </div></div>
     <div class="dgrid" style="margin-bottom:4px">
       ${['p','c','f'].map((k,i)=>`<label class="dfield"><span class="dlab">
-        <span class="dot d-${k}"></span>${['Protein','Carbs','Fat'][i]}</span>
+        <span class="dot d-${k}"></span>${t(['Protein','Carbs','Fat'][i])}</span>
         <input class="num" type="number" min="0" step="1" data-b="${k}">
         <span class="dsub" data-g="${k}"></span></label>`).join('')}
-      <label class="dfield"><span class="dlab">Calories</span>
+      <label class="dfield"><span class="dlab">${t('Calories')}</span>
         <input class="num" type="number" min="0" step="10" data-b="kcal" value="${kcal}">
         <span class="dsub" data-g="kcal"></span></label>
     </div>
-    <div class="field" style="margin-top:12px"><label>Protein source</label><select data-src="protein">${opts('protein')}</select></div>
-    <div class="field"><label>Carb source</label><select data-src="carb">${opts('carb')}</select></div>
-    <div class="field"><label>Fat source</label><select data-src="fat">${opts('fat')}</select></div>
-    <div class="field"><label>Extra (optional)</label><select data-src="veg">${opts('veg')}</select></div>
-    <p class="hint" style="margin:0">Leave a source on “Any” and the generator picks one. Portions are solved to land on the target; they snap to each food’s step size, so expect a percent or two of drift.</p>`;
-  const p=modal('Build '+m.name,body,
-    [{label:'Cancel',ghost:true,value:null},{label:'Build',solid:true,value:'go'}]);
+    <div class="field" style="margin-top:12px"><label>${t('Protein source')}</label><select data-src="protein">${opts('protein')}</select></div>
+    <div class="field"><label>${t('Carb source')}</label><select data-src="carb">${opts('carb')}</select></div>
+    <div class="field"><label>${t('Fat source')}</label><select data-src="fat">${opts('fat')}</select></div>
+    <div class="field"><label>${t('Extra (optional)')}</label><select data-src="veg">${opts('veg')}</select></div>
+    <p class="hint" style="margin:0">${t('Leave a source on “Any” and the generator picks one. Portions are solved to land on the target; they snap to each food’s step size, so expect a percent or two of drift.')}</p>`;
+  const p=modal(t('Build')+' '+m.name,body,
+    [{label:t('Cancel'),ghost:true,value:null},{label:t('Build'),solid:true,value:'go'}]);
   const host=$('#mBody');
   const inp=k=>host.querySelector(`[data-b="${k}"]`);
   const sub=k=>host.querySelector(`[data-g="${k}"]`);
@@ -500,11 +656,11 @@ function buildDialog(mid){
     const g=gramsFrom(kcal,split);
     ['p','c','f'].forEach(k=>{
       const el=inp(k); if(el&&document.activeElement!==el) el.value = unit==='g'?r1(g[k]):split[k];
-      sub(k).textContent = unit==='g'?split[k]+' %':r1(g[k])+' g';
+      sub(k).textContent = unit==='g'?split[k]+' %':r1(g[k])+' '+t('g');
     });
     const ke=inp('kcal'); if(ke&&document.activeElement!==ke) ke.value=r0(kcal);
     ke.disabled = unit==='g';
-    sub('kcal').textContent = unit==='g'?'from the macros':'kcal for this meal';
+    sub('kcal').textContent = unit==='g'?t('from the macros'):t('kcal for this meal');
   }
   host.addEventListener('change',e=>{
     const k=e.target.dataset.b; if(!k) return;
@@ -542,74 +698,74 @@ function onboardingDialog(){
     function goalStep(){
       const showPace = p.goal!=='maintain';
       return `
-        <div class="wizprog">${steps.map((t,i)=>`<span class="${i===step?'on':i<step?'done':''}">${i+1}</span>`).join('')}</div>
-        <div class="field"><label>What are you working towards?</label>
+        <div class="wizprog">${steps.map((_,i)=>`<span class="${i===step?'on':i<step?'done':''}">${i+1}</span>`).join('')}</div>
+        <div class="field"><label>${t('What are you working towards?')}</label>
           <div class="seg wide" data-w="goal">
-            <button data-v="lose"${p.goal==='lose'?' class="on"':''}>Lose weight</button>
-            <button data-v="maintain"${p.goal==='maintain'?' class="on"':''}>Maintain</button>
-            <button data-v="gain"${p.goal==='gain'?' class="on"':''}>Gain weight</button>
+            <button data-v="lose"${p.goal==='lose'?' class="on"':''}>${t('Lose weight')}</button>
+            <button data-v="maintain"${p.goal==='maintain'?' class="on"':''}>${t('Maintain')}</button>
+            <button data-v="gain"${p.goal==='gain'?' class="on"':''}>${t('Gain weight')}</button>
           </div></div>
         <div id="paceBlock" style="display:${showPace?'block':'none'}">
-          <div class="field"><label>Target weight (kg) <span class="hint">— optional</span></label>
+          <div class="field"><label>${t('Target weight (kg)')} <span class="hint">${t('— optional')}</span></label>
             <input class="num" type="number" min="0" step="0.5" data-w="targetWeightKg" value="${p.targetWeightKg||''}"></div>
-          <div class="field"><label>In how many weeks? <span class="hint">— optional</span></label>
+          <div class="field"><label>${t('In how many weeks?')} <span class="hint">${t('— optional')}</span></label>
             <input class="num" type="number" min="0" step="1" data-w="weeks" value="${p.weeks||''}"></div>
-          <p class="hint" style="margin:0 0 12px">Give both and we work out the pace directly from them (using ~7700 kcal per kg). Leave either blank and you pick a pace instead:</p>
-          <div class="field"><label>Pace</label>
+          <p class="hint" style="margin:0 0 12px">${t('Give both and we work out the pace directly from them (using ~7700 kcal per kg). Leave either blank and you pick a pace instead:')}</p>
+          <div class="field"><label>${t('Pace')}</label>
             <div class="seg wide" data-w="pace">
               ${[['verylow','Gentle'],['low','Steady'],['normal','Standard'],['high','Faster']].map(([v,l])=>
-                `<button data-v="${v}"${p.pace===v?' class="on"':''}>${l}</button>`).join('')}
+                `<button data-v="${v}"${p.pace===v?' class="on"':''}>${t(l)}</button>`).join('')}
             </div></div>
         </div>
         <p class="hint" id="wMsg" style="margin:8px 0 0"></p>`;
     }
     function infoStep(){
-      const sel=(k,opts)=>`<select data-w="${k}">${opts.map(([v,l])=>`<option value="${v}"${p[k]===v?' selected':''}>${l}</option>`).join('')}</select>`;
+      const sel=(k,opts)=>`<select data-w="${k}">${opts.map(([v,l])=>`<option value="${v}"${p[k]===v?' selected':''}>${t(l)}</option>`).join('')}</select>`;
       return `
-        <div class="wizprog">${steps.map((t,i)=>`<span class="${i===step?'on':i<step?'done':''}">${i+1}</span>`).join('')}</div>
+        <div class="wizprog">${steps.map((_,i)=>`<span class="${i===step?'on':i<step?'done':''}">${i+1}</span>`).join('')}</div>
         <div class="seg wide" data-w="sex" style="margin-bottom:12px">
-          <button data-v="male"${p.sex==='male'?' class="on"':''}>Male</button>
-          <button data-v="female"${p.sex==='female'?' class="on"':''}>Female</button></div>
+          <button data-v="male"${p.sex==='male'?' class="on"':''}>${t('Male')}</button>
+          <button data-v="female"${p.sex==='female'?' class="on"':''}>${t('Female')}</button></div>
         <div class="dgrid" style="margin-bottom:12px">
-          <label class="dfield"><span class="dlab">Age</span><input class="num" type="number" min="10" max="100" data-w="age" value="${p.age}"></label>
-          <label class="dfield"><span class="dlab">Height cm</span><input class="num" type="number" min="100" max="230" data-w="heightCm" value="${p.heightCm}"></label>
-          <label class="dfield"><span class="dlab">Weight kg</span><input class="num" type="number" min="30" max="300" step="0.1" data-w="weightKg" value="${p.weightKg}"></label>
+          <label class="dfield"><span class="dlab">${t('Age')}</span><input class="num" type="number" min="10" max="100" data-w="age" value="${p.age}"></label>
+          <label class="dfield"><span class="dlab">${t('Height cm')}</span><input class="num" type="number" min="100" max="230" data-w="heightCm" value="${p.heightCm}"></label>
+          <label class="dfield"><span class="dlab">${t('Weight kg')}</span><input class="num" type="number" min="30" max="300" step="0.1" data-w="weightKg" value="${p.weightKg}"></label>
         </div>
-        <div class="field"><label>Daily activity <span class="hint">(job / general movement)</span></label>
+        <div class="field"><label>${t('Daily activity')} <span class="hint">${t('(job / general movement)')}</span></label>
           ${sel('activity',[['sedentary','Sedentary'],['active','Active'],['veryactive','Very active']])}</div>
-        <div class="field"><label>Workouts per week</label>
-          ${sel('workouts',[['0','0'],['1-3','1–3 days'],['4-6','4–6 days'],['7+','7+ days']])}</div>
-        <div class="field"><label>Protein target</label>
+        <div class="field"><label>${t('Workouts per week')}</label>
+          ${sel('workouts',[['0','0'],['1-3','1–3 '+t('days')],['4-6','4–6 '+t('days')],['7+','7+ '+t('days')]])}</div>
+        <div class="field"><label>${t('Protein target')}</label>
           ${sel('proteinLevel',[['normal','Normal'],['high','High'],['veryhigh','Very high']])}</div>
-        <div class="field"><label>Fat target</label>
+        <div class="field"><label>${t('Fat target')}</label>
           ${sel('fatLevel',[['minimum','Minimum'],['low','Low'],['normal','Normal'],['high','High']])}</div>
         <p class="hint" id="wMsg" style="margin:0"></p>`;
     }
     function resultStep(){
-      const t=calcTargets(p);
+      const calc=calcTargets(p);
       return `
-        <div class="wizprog">${steps.map((t,i)=>`<span class="${i===step?'on':i<step?'done':''}">${i+1}</span>`).join('')}</div>
+        <div class="wizprog">${steps.map((_,i)=>`<span class="${i===step?'on':i<step?'done':''}">${i+1}</span>`).join('')}</div>
         <div class="card daily" style="border:0;background:var(--paper);padding:14px 16px">
-          <div class="dhead" style="border:0;padding:0 0 8px"><h3>Estimated daily target</h3></div>
+          <div class="dhead" style="border:0;padding:0 0 8px"><h3>${t('Estimated daily target')}</h3></div>
           <div class="dgrid">
-            <label class="dfield"><span class="dlab">Calories</span><div class="num" style="padding:8px 10px;text-align:right;font-weight:600;font-size:17px">${t.kcal}</div></label>
-            <label class="dfield"><span class="dlab"><span class="dot d-p"></span>Protein</span><div class="num" style="padding:8px 10px;text-align:right">${t.split.p}%</div></label>
-            <label class="dfield"><span class="dlab"><span class="dot d-c"></span>Carbs</span><div class="num" style="padding:8px 10px;text-align:right">${t.split.c}%</div></label>
-            <label class="dfield"><span class="dlab"><span class="dot d-f"></span>Fat</span><div class="num" style="padding:8px 10px;text-align:right">${t.split.f}%</div></label>
+            <label class="dfield"><span class="dlab">${t('Calories')}</span><div class="num" style="padding:8px 10px;text-align:right;font-weight:600;font-size:17px">${calc.kcal}</div></label>
+            <label class="dfield"><span class="dlab"><span class="dot d-p"></span>${t('Protein')}</span><div class="num" style="padding:8px 10px;text-align:right">${calc.split.p}%</div></label>
+            <label class="dfield"><span class="dlab"><span class="dot d-c"></span>${t('Carbs')}</span><div class="num" style="padding:8px 10px;text-align:right">${calc.split.c}%</div></label>
+            <label class="dfield"><span class="dlab"><span class="dot d-f"></span>${t('Fat')}</span><div class="num" style="padding:8px 10px;text-align:right">${calc.split.f}%</div></label>
           </div>
-          <p class="hint" style="margin:10px 0 0">BMR ${t.bmr} kcal · maintenance ~${t.tdee} kcal · ${p.goal==='maintain'?'no adjustment':(p.goal==='lose'?'-':'+')+t.pct+'% '+(p.goal==='lose'?'deficit':'surplus')} · ~${t.fiber} g fiber/day</p>
+          <p class="hint" style="margin:10px 0 0">BMR ${calc.bmr} ${t('kcal')} · ${t('maintenance')} ~${calc.tdee} ${t('kcal')} · ${p.goal==='maintain'?t('no adjustment'):(p.goal==='lose'?'-':'+')+calc.pct+'% '+(p.goal==='lose'?t('deficit'):t('surplus'))} · ~${calc.fiber} ${t('g fiber/day')}</p>
         </div>
-        <p class="hint" style="margin:12px 0 0">This is a starting point from standard formulas, not medical advice. Apply it and adjust anything in Targets afterwards — or skip and set numbers yourself.</p>`;
+        <p class="hint" style="margin:12px 0 0">${t('This is a starting point from standard formulas, not medical advice. Apply it and adjust anything in Targets afterwards — or skip and set numbers yourself.')}</p>`;
     }
 
     function paint(){
-      $('#mTitle').textContent = step===0?'What are you working towards?':step===1?'A bit about you':'Your estimated targets';
+      $('#mTitle').textContent = step===0?t('What are you working towards?'):step===1?t('A bit about you'):t('Your estimated targets');
       $('#mBody').innerHTML = step===0?goalStep():step===1?infoStep():resultStep();
-      const back = step>0?{label:'Back'}:{label:'Skip',ghost:true};
-      const fwd  = step<2?{label:'Next',solid:true}:{label:'Apply to my plan',solid:true};
+      const back = step>0?{label:t('Back')}:{label:t('Skip'),ghost:true};
+      const fwd  = step<2?{label:t('Next'),solid:true}:{label:t('Apply to my plan'),solid:true};
       $('#mBtns').innerHTML = `<button class="btn ${back.ghost?'ghost':''}" data-nav="back">${back.label}</button>
         <span class="spacer"></span>
-        ${step===2?'<button class="btn" data-nav="restart">Start over</button>':''}
+        ${step===2?'<button class="btn" data-nav="restart">'+t('Start over')+'</button>':''}
         <button class="btn ${fwd.solid?'solid':''}" data-nav="fwd">${fwd.label}</button>`;
     }
     function readField(el){
@@ -635,7 +791,7 @@ function onboardingDialog(){
       if(nav==='back'){ if(step===0){ $('#veil').classList.remove('show'); resolve({...p,done:true,_skipped:true}); return; } step--; paint(); return; }
       if(nav==='restart'){ step=0; paint(); return; }
       if(nav==='fwd'){
-        if(!valid()){ const m=$('#wMsg'); if(m) m.textContent='Fill in age, height and weight to continue.'; return; }
+        if(!valid()){ const m=$('#wMsg'); if(m) m.textContent=t('Fill in age, height and weight to continue.'); return; }
         if(step<2){ step++; paint(); return; }
         $('#veil').classList.remove('show'); resolve({...p,done:true,_skipped:false});
       }
@@ -647,10 +803,10 @@ async function runOnboarding(){
   const result = await onboardingDialog();
   S.profile = {...result}; delete S.profile._skipped;
   if(!result._skipped){
-    const t=calcTargets(result);
-    S.daily.kcal=t.kcal; S.daily.split=t.split; S.daily.mode='pct';
+    const calc=calcTargets(result);
+    S.daily.kcal=calc.kcal; S.daily.split=calc.split; S.daily.mode='pct';
     scaleMealsToDaily();
-    toast('Targets updated from your profile');
+    toast(t('Targets updated from your profile'));
   }
   touchProfile(); render();
 }
@@ -662,14 +818,14 @@ function ledger(){
   const {tgt}=dayTotals();                    // target only — what you plan to eat, not what's logged so far
   const cell=(cls,lab,v,unit)=>`<div class="lg ${cls}">
       <div class="lab"><span>${lab}</span></div>
-      <div class="val">${r0(v)}${unit==='kcal'?' kcal':' g'}</div></div>`;
-  host.innerHTML=cell('k-cal','Calories',tgt.k,'kcal')+cell('k-p','Protein',tgt.p,'g')+
-    cell('k-c','Carbs',tgt.c,'g')+cell('k-f','Fat',tgt.f,'g');
+      <div class="val">${r0(v)}${unit==='kcal'?' '+t('kcal'):' '+t('g')}</div></div>`;
+  host.innerHTML=cell('k-cal',t('Calories'),tgt.k,'kcal')+cell('k-p',t('Protein'),tgt.p,'g')+
+    cell('k-c',t('Carbs'),tgt.c,'g')+cell('k-f',t('Fat'),tgt.f,'g');
   const di=$('#dDate'); if(di) di.value=S.date;
   const dl=$('#dLabel');
   if(dl){ const diff=Math.round((new Date(S.date)-new Date(today()))/864e5);
-    dl.textContent=diff===0?'today':diff===-1?'yesterday':diff===1?'tomorrow':
-      new Date(S.date).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}); }
+    dl.textContent=diff===0?t('today'):diff===-1?t('yesterday'):diff===1?t('tomorrow'):
+      new Date(S.date).toLocaleDateString(LANG==='ru'?'ru-RU':'en-GB',{weekday:'long',day:'numeric',month:'long'}); }
 }
 function mealCard(m){
   const list=items(m.id), tot=mealTotals(m.id);
@@ -679,12 +835,12 @@ function mealCard(m){
     return `<div class="row" data-m="${m.id}" data-i="${i}">
       <div><div class="rname" title="${esc(f.n)}">${esc(f.n)}</div>
         <span class="rmac"><b class="c-p">${r1(x.p)}p</b> · <b class="c-c">${r1(x.c)}c</b> · <b class="c-f">${r1(x.f)}f</b>${x.fib>0.05?' · '+r1(x.fib)+' fib':''} · ${r0(x.k)} kcal</span></div>
-      <div class="qty"><button data-act="dec" aria-label="decrease">−</button>
+      <div class="qty"><button data-act="dec" aria-label="${t('decrease')}">−</button>
         <input class="num" type="number" inputmode="decimal" data-act="qty" value="${it.q}" step="${f.st}" min="0">
-        <button data-act="inc" aria-label="increase">+</button><span class="u">${esc(f.u)}</span></div>
+        <button data-act="inc" aria-label="${t('increase')}">+</button><span class="u">${esc(f.u)}</span></div>
       <div class="icons">
-        <button class="ico ${it.lock?'on':''}" data-act="lock" title="${it.lock?'Locked':'Lock'}">${it.lock?'🔒':'🔓'}</button>
-        <button class="ico" data-act="del" title="Remove">✕</button></div></div>`;
+        <button class="ico ${it.lock?'on':''}" data-act="lock" title="${it.lock?t('Locked'):t('Lock')}">${it.lock?'🔒':'🔓'}</button>
+        <button class="ico" data-act="del" title="${t('Remove')}">✕</button></div></div>`;
   }).join('');
   const bar=(cls,lab,a,t)=>{
     const pct=t>0?Math.min(100,a/t*100):(a>0?100:0), over=t>0&&a>t*1.03, d=a-t;
@@ -694,70 +850,70 @@ function mealCard(m){
   };
   const opts=[...S.foods].sort((a,b)=>a.n.localeCompare(b.n)).map(f=>`<option value="${f.id}">${esc(f.n)}</option>`).join('');
   return `<section class="card meal" data-m="${m.id}">
-    <div class="mhead"><span class="mname">${esc(m.name)}</span><span class="mkcal">${r0(tot.k)} / ${r0(targetKcal(m.t))} kcal</span></div>
-    <div class="rows">${rows||'<div class="empty">Empty — add something below or fill it automatically.</div>'}</div>
-    <div class="addrow"><select data-act="add"><option value="">+ add food…</option>${opts}</select></div>
+    <div class="mhead"><span class="mname">${esc(m.name)}</span><span class="mkcal">${r0(tot.k)} / ${r0(targetKcal(m.t))} ${t('kcal')}</span></div>
+    <div class="rows">${rows||'<div class="empty">'+t('Empty — add something below or fill it automatically.')+'</div>'}</div>
+    <div class="addrow"><select data-act="add"><option value="">${t('+ add food…')}</option>${opts}</select></div>
     <div class="mtot">${bar('p','P',tot.p,m.t.p)}${bar('c','K',tot.c,m.t.c)}${bar('f','Y',tot.f,m.t.f)}</div>
     <div class="acts">
-      <button class="btn solid" data-act="build">Build…</button>
-      <button class="btn" data-act="auto">Auto-fill</button>
-      <button class="btn ghost" data-act="alt">Another option</button>
-      <button class="btn ghost" data-act="shuffle">Shuffle</button>
-      <button class="btn ghost" data-act="savemeal">Save</button>
-      <button class="btn ghost" data-act="clear">Clear</button></div></section>`;
+      <button class="btn solid" data-act="build">${t('Build…')}</button>
+      <button class="btn" data-act="auto">${t('Auto-fill')}</button>
+      <button class="btn ghost" data-act="alt">${t('Another option')}</button>
+      <button class="btn ghost" data-act="shuffle">${t('Shuffle')}</button>
+      <button class="btn ghost" data-act="savemeal">${t('Save')}</button>
+      <button class="btn ghost" data-act="clear">${t('Clear')}</button></div></section>`;
 }
 const viewPlan=()=>`<div class="datebar">
-    <button class="dnav" id="dPrev" aria-label="previous day">‹</button>
+    <button class="dnav" id="dPrev" aria-label="${t('previous day')}">‹</button>
     <input type="date" id="dDate">
-    <button class="dnav" id="dNext" aria-label="next day">›</button>
-    <button class="mini" id="dToday">Today</button>
+    <button class="dnav" id="dNext" aria-label="${t('next day')}">›</button>
+    <button class="mini" id="dToday">${t('Today')}</button>
     <span class="dlabel" id="dLabel"></span></div>
   <div class="ledger" id="ledger"></div>
-  <div class="planhead"><h2 style="margin:0">Today's plan</h2>
-    ${dayTotals().act.fib>0.05?`<span class="chip">${r1(dayTotals().act.fib)} g fiber</span>`:''}<span class="spacer"></span>
-    <button class="btn solid" id="fillAll">Fill the whole day</button>
-    <button class="btn" id="copyPrev">Same as yesterday</button>
-    <button class="btn" id="btnShare">Share</button>
-    <button class="btn ghost" id="copyDay">Copy as text</button></div>
+  <div class="planhead"><h2 style="margin:0">${t("Today's plan")}</h2>
+    ${dayTotals().act.fib>0.05?`<span class="chip">${r1(dayTotals().act.fib)} ${t('g')} ${t('Fiber').toLowerCase()}</span>`:''}<span class="spacer"></span>
+    <button class="btn solid" id="fillAll">${t('Fill the whole day')}</button>
+    <button class="btn" id="copyPrev">${t('Same as yesterday')}</button>
+    <button class="btn" id="btnShare">${t('Share')}</button>
+    <button class="btn ghost" id="copyDay">${t('Copy as text')}</button></div>
   <div class="grid">${S.template.map(mealCard).join('')}</div>`;
 
 function viewFoods(){
   const list=S.foods.filter(f=>f.n.toLowerCase().includes(foodFilter));
   const rows=list.map(f=>`<tr data-f="${f.id}">
     <td><input data-k="n" value="${esc(f.n)}"></td>
-    <td><select data-k="b"><option value="100g"${f.b==='100g'?' selected':''}>100 g</option><option value="piece"${f.b==='piece'?' selected':''}>piece/scoop</option></select></td>
+    <td><select data-k="b"><option value="100g"${f.b==='100g'?' selected':''}>100 ${t('g')}</option><option value="piece"${f.b==='piece'?' selected':''}>${t('piece/scoop')}</option></select></td>
     <td class="n"><input data-k="p" class="num" type="number" step="0.1" value="${f.p}"></td>
     <td class="n"><input data-k="c" class="num" type="number" step="0.1" value="${f.c}"></td>
     <td class="n"><input data-k="f" class="num" type="number" step="0.1" value="${f.f}"></td>
     <td class="n"><input data-k="fib" class="num" type="number" step="0.1" value="${f.fib||0}"></td>
     <td class="n"><input data-k="k" class="num" type="number" step="1" value="${f.k}"></td>
     <td>${(()=>{const c=kcalCheck(f); return c.level==='ok'?'' :
-      `<span class="kflag ${c.level}" title="Macros work out to ${r0(c.want)} kcal">${c.diff>0?'+':''}${r0(c.diff)}</span>`;})()}</td>
-    <td><select data-k="role">${['protein','carb','fat','veg'].map(r=>`<option value="${r}"${f.role===r?' selected':''}>${({protein:'protein',carb:'carb',fat:'fat',veg:'veg'})[r]}</option>`).join('')}</select></td>
+      `<span class="kflag ${c.level}" title="${t('Macros work out to')} ${r0(c.want)} ${t('kcal')}">${c.diff>0?'+':''}${r0(c.diff)}</span>`;})()}</td>
+    <td><select data-k="role">${['protein','carb','fat','veg'].map(r=>`<option value="${r}"${f.role===r?' selected':''}>${t({protein:'protein',carb:'carb',fat:'fat',veg:'veg'}[r])}</option>`).join('')}</select></td>
     <td class="n"><input data-k="mn" class="num" type="number" step="1" value="${f.mn}"></td>
     <td class="n"><input data-k="mx" class="num" type="number" step="1" value="${f.mx}"></td>
     <td style="text-align:center"><input data-k="use" type="checkbox"${f.use?' checked':''} style="width:auto"></td>
-    <td style="white-space:nowrap"><button class="ico" data-act="editfood" title="Edit">✎</button><button class="ico" data-act="delfood" title="Delete">✕</button></td></tr>`).join('');
-  return `<h2>Food list <span class="hint">· ${S.foods.length} entries${cloud()?' · shared kitchen':''}</span></h2>
-    <p class="hint" style="margin:-4px 0 12px">Values are per <b>100 g</b> or per <b>1 piece/scoop</b>. <b>Min/Max</b> is the portion range the generator may use; unchecking <b>Use</b> keeps a food out of suggestions.${cloud()?' This list is shared with everyone in your kitchen — edits reach them right away.':''}</p>
-    <div class="searchbar"><input id="fq" placeholder="Search…" value="${esc(foodFilter)}"><button class="btn solid" id="addFood">Add food</button></div>
+    <td style="white-space:nowrap"><button class="ico" data-act="editfood" title="${t('Edit')}">✎</button><button class="ico" data-act="delfood" title="${t('Delete')}">✕</button></td></tr>`).join('');
+  return `<h2>${t('Food list')} <span class="hint">· ${S.foods.length} ${t('entries')}${cloud()?' · '+t('shared kitchen'):''}</span></h2>
+    <p class="hint" style="margin:-4px 0 12px">${t('Values are per')} <b>100 ${t('g')}</b> ${t('or per')} <b>${t('1 piece/scoop')}</b>. <b>Min/Max</b> ${t('is the portion range the generator may use; unchecking')} <b>${t('Use')}</b> ${t('keeps a food out of suggestions.')}${cloud()?' '+t('This list is shared with everyone in your kitchen — edits reach them right away.'):''}</p>
+    <div class="searchbar"><input id="fq" placeholder="${t('Search…')}" value="${esc(foodFilter)}"><button class="btn solid" id="addFood">${t('Add food')}</button></div>
     <div class="tablewrap"><table><thead><tr>
-      <th>Food</th><th>Unit</th><th class="n">Protein</th><th class="n">Carbs</th><th class="n">Fat</th><th class="n">Fiber</th><th class="n">kcal</th><th></th>
-      <th>Role</th><th class="n">Min</th><th class="n">Max</th><th>Use</th><th></th></tr></thead>
-      <tbody>${rows||'<tr><td colspan="13" class="empty">No food matches that search.</td></tr>'}</tbody></table></div>`;
+      <th>${t('Food')}</th><th>${t('Unit')}</th><th class="n">${t('Protein')}</th><th class="n">${t('Carbs')}</th><th class="n">${t('Fat')}</th><th class="n">${t('Fiber')}</th><th class="n">${t('kcal')}</th><th></th>
+      <th>${t('Role')}</th><th class="n">${t('Min')}</th><th class="n">${t('Max')}</th><th>${t('Use')}</th><th></th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="13" class="empty">'+t('No food matches that search.')+'</td></tr>'}</tbody></table></div>`;
 }
 function viewTargets(){
   const d=dailyGrams(), a=allocated(), sp=S.daily.split;
   const sum=r1(sp.p+sp.c+sp.f), byPct=S.daily.mode==='pct', mealPct=S.mealUnit==='pct';
   const seg=(id,cur,opts)=>`<div class="seg" id="${id}">`+opts.map(o=>
-    `<button data-v="${o[0]}"${cur===o[0]?' class="on"':''}>${o[1]}</button>`).join('')+`</div>`;
+    `<button data-v="${o[0]}"${cur===o[0]?' class="on"':''}>${t(o[1])}</button>`).join('')+`</div>`;
 
   const macro=(k,lab,cls)=>{
     const g=d[k], pc=sp[k];
-    return `<label class="dfield"><span class="dlab"><span class="dot d-${cls}"></span>${lab}</span>
+    return `<label class="dfield"><span class="dlab"><span class="dot d-${cls}"></span>${t(lab)}</span>
       <input class="num" type="number" step="${byPct?'0.5':'1'}" data-daily="${k}"
              value="${byPct?pc:r1(g)}" min="0">
-      <span class="dsub">${byPct?`${r1(g)} g`:`${d.k>0?r1(pc):0} %`}</span></label>`;
+      <span class="dsub">${byPct?`${r1(g)} ${t('g')}`:`${d.k>0?r1(pc):0} %`}</span></label>`;
   };
 
   const rows=S.template.map(m=>{
@@ -769,137 +925,137 @@ function viewTargets(){
       <input type="text" data-k="name" value="${esc(m.name)}">
       ${cell('p')}${cell('c')}${cell('f')}
       <input class="num" type="number" data-k="kcal" step="10" min="0" value="${r0(targetKcal(m.t))}">
-      <button class="ico" data-act="delmeal" title="Delete meal">✕</button></div>`;
+      <button class="ico" data-act="delmeal" title="${t('Delete meal')}">✕</button></div>`;
   }).join('');
 
   const gap=(lab,al,da,cls)=>{
     const diff=al-da, near=Math.abs(diff)<(lab==='kcal'?12:1.5);
-    return `<span class="allocitem"><span class="dot d-${cls}"></span>${lab}
+    return `<span class="allocitem"><span class="dot d-${cls}"></span>${t(lab)}
       <b class="num">${r0(al)}</b><span class="hint num"> / ${r0(da)}</span>
       <span class="delta num ${near?'fit':(diff>0?'pos':'neg')}">${diff>0?'+':''}${r0(diff)}</span></span>`;
   };
 
-  return `<h2>Targets</h2>
-  <p class="hint" style="margin:-4px 0 14px">Calories are the budget: raise one macro and the other two give way to keep the split at 100%. Below, set each meal in grams, as a share of the day, or straight in calories — typing calories rescales that meal and keeps its own macro balance.</p>
+  return `<h2>${t('Targets')}</h2>
+  <p class="hint" style="margin:-4px 0 14px">${t('Calories are the budget: raise one macro and the other two give way to keep the split at 100%. Below, set each meal in grams, as a share of the day, or straight in calories — typing calories rescales that meal and keeps its own macro balance.')}</p>
 
   <section class="card daily">
-    <div class="dhead"><h3>Daily target</h3><span class="spacer"></span>
+    <div class="dhead"><h3>${t('Daily target')}</h3><span class="spacer"></span>
       ${seg('segDaily',S.daily.mode,[['pct','% of calories'],['g','grams']])}</div>
     <div class="dgrid">
-      <label class="dfield kcalfield"><span class="dlab">Calories</span>
+      <label class="dfield kcalfield"><span class="dlab">${t('Calories')}</span>
         <input class="num" type="number" step="10" min="0" data-daily="kcal" value="${r0(S.daily.kcal)}">
-        <span class="dsub">kcal per day</span></label>
+        <span class="dsub">${t('kcal per day')}</span></label>
       ${macro('p','Protein','p')}${macro('c','Carbs','c')}${macro('f','Fat','f')}
     </div>
-    ${byPct&&Math.abs(sum-100)>0.5?`<div class="warn">The split adds up to ${sum}% instead of 100%, so the grams above will not match your calorie goal.
-      <button class="btn" id="normSplit" style="margin-left:6px">Normalise to 100%</button></div>`:''}
+    ${byPct&&Math.abs(sum-100)>0.5?`<div class="warn">${t('The split adds up to')} ${sum}% ${t('instead of 100%, so the grams above will not match your calorie goal.')}
+      <button class="btn" id="normSplit" style="margin-left:6px">${t('Normalise to 100%')}</button></div>`:''}
   </section>
 
   <section class="card" style="margin-top:14px">
-    <div class="dhead"><h3>Split across meals</h3><span class="spacer"></span>
+    <div class="dhead"><h3>${t('Split across meals')}</h3><span class="spacer"></span>
       ${seg('segMeal',S.mealUnit,[['g','grams'],['pct','% of daily']])}</div>
-    <div class="trow thead"><span>Meal</span><span style="text-align:right">Protein</span><span style="text-align:right">Carbs</span><span style="text-align:right">Fat</span><span style="text-align:right">Calories</span><span></span></div>
+    <div class="trow thead"><span>${t('Meal')}</span><span style="text-align:right">${t('Protein')}</span><span style="text-align:right">${t('Carbs')}</span><span style="text-align:right">${t('Fat')}</span><span style="text-align:right">${t('Calories')}</span><span></span></div>
     ${rows}
     <div class="alloc">
-      <span class="alloclab">Allocated</span>
-      ${gap('protein',a.p,d.p,'p')}${gap('carbs',a.c,d.c,'c')}${gap('fat',a.f,d.f,'f')}
-      <span class="allocitem">kcal <b class="num">${r0(a.k)}</b><span class="hint num"> / ${r0(d.k)}</span>
+      <span class="alloclab">${t('Allocated')}</span>
+      ${gap('protein ',a.p,d.p,'p')}${gap('carbs',a.c,d.c,'c')}${gap('fat ',a.f,d.f,'f')}
+      <span class="allocitem">${t('kcal')} <b class="num">${r0(a.k)}</b><span class="hint num"> / ${r0(d.k)}</span>
         <span class="delta num ${Math.abs(a.k-d.k)<12?'fit':(a.k>d.k?'pos':'neg')}">${a.k>d.k?'+':''}${r0(a.k-d.k)}</span></span>
     </div>
   </section>
 
   <div class="acts" style="margin-top:12px">
-    <button class="btn solid" id="scaleMeals">Fit meals to daily target</button>
-    <button class="btn" id="addMeal">Add meal</button>
-    <button class="btn ghost" id="resetAll">Reset everything</button></div>`;
+    <button class="btn solid" id="scaleMeals">${t('Fit meals to daily target')}</button>
+    <button class="btn" id="addMeal">${t('Add meal')}</button>
+    <button class="btn ghost" id="resetAll">${t('Reset everything')}</button></div>`;
 }
 function viewSaved(){
-  if(!S.saved.length) return `<h2>Saved combinations</h2><div class="card empty" style="padding:26px">Nothing saved yet. Hit <b>Save</b> on a meal you like in the Plan tab.</div>`;
+  if(!S.saved.length) return `<h2>${t('Saved combinations')}</h2><div class="card empty" style="padding:26px">${t('Nothing saved yet. Hit')} <b>${t('Save')}</b> ${t('on a meal you like in the Plan tab.')}</div>`;
   const mopts=S.template.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('');
-  return `<h2>Saved combinations${cloud()?' <span class="hint">· shared kitchen</span>':''}</h2><div class="grid">${S.saved.map(s=>{
-    const it=s.items.map(i=>{const f=F(i.fid);return f?`${esc(f.n)} <span class="hint">${i.q}${f.b==='100g'?'g':' '+esc(f.u)}</span>`:''}).filter(Boolean).join(' · ');
+  return `<h2>${t('Saved combinations')}${cloud()?' <span class="hint">· '+t('shared kitchen')+'</span>':''}</h2><div class="grid">${S.saved.map(s=>{
+    const it=s.items.map(i=>{const f=F(i.fid);return f?`${esc(f.n)} <span class="hint">${i.q}${f.b==='100g'?t('g'):' '+esc(f.u)}</span>`:''}).filter(Boolean).join(' · ');
     return `<section class="card meal" data-s="${s.id}">
-      <div class="mhead"><span class="mname">${esc(s.name)}</span><span class="mkcal">${r0(s.k||0)} kcal</span></div>
-      <p style="margin:9px 0 10px;font-size:13px;line-height:1.6">${it||'<span class="hint">The foods in this combination were deleted from the list.</span>'}</p>
+      <div class="mhead"><span class="mname">${esc(s.name)}</span><span class="mkcal">${r0(s.k||0)} ${t('kcal')}</span></div>
+      <p style="margin:9px 0 10px;font-size:13px;line-height:1.6">${it||'<span class="hint">'+t('The foods in this combination were deleted from the list.')+'</span>'}</p>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <span class="chip c-p">${r1(s.p||0)} p</span><span class="chip c-c">${r1(s.c||0)} k</span><span class="chip c-f">${r1(s.f||0)} y</span></div>
       <div class="acts"><select data-act="loadto" style="border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-size:12.5px">${mopts}</select>
-        <button class="btn solid" data-act="load">Load</button>
-        <button class="btn ghost" data-act="delsaved">Delete</button></div></section>`;}).join('')}</div>`;
+        <button class="btn solid" data-act="load">${t('Load')}</button>
+        <button class="btn ghost" data-act="delsaved">${t('Delete')}</button></div></section>`;}).join('')}</div>`;
 }
 
 function profileCard(){
   const p=S.profile, has=p&&p.done&&!p._skipped;
-  const t=has?calcTargets(p):null;
+  const calc=has?calcTargets(p):null;
   return `<section class="card acct" style="margin-top:14px">
-    <div class="dhead"><h3>Profile</h3></div>
-    ${has?`<p class="hint" style="margin:0 0 4px">${p.sex==='male'?'Male':'Female'}, ${p.age}, ${p.heightCm} cm, ${p.weightKg} kg
-      ${p.goal!=='maintain'?' · goal: '+(p.goal==='lose'?'lose weight':'gain weight'):' · maintaining'}</p>
-      <p class="hint" style="margin:0 0 12px">Last estimate: ${t.kcal} kcal · P${t.split.p}% C${t.split.c}% F${t.split.f}%</p>`
-      :`<p class="hint" style="margin:0 0 12px">Not set up yet. Answer a few questions and we will suggest daily calories and macros for you.</p>`}
-    <div class="acts" style="margin:0"><button class="btn solid" id="doProfile">${has?'Redo profile':'Set up profile'}</button></div>
+    <div class="dhead"><h3>${t('Profile')}</h3></div>
+    ${has?`<p class="hint" style="margin:0 0 4px">${p.sex==='male'?t('Male'):t('Female')}, ${p.age}, ${p.heightCm} ${t('cm')}, ${p.weightKg} ${t('kg')}
+      ${p.goal!=='maintain'?' · '+(p.goal==='lose'?t('goal: lose weight'):t('goal: gain weight')):' · '+t('maintaining')}</p>
+      <p class="hint" style="margin:0 0 12px">${t('Last estimate')}: ${calc.kcal} ${t('kcal')} · P${calc.split.p}% C${calc.split.c}% F${calc.split.f}%</p>`
+      :`<p class="hint" style="margin:0 0 12px">${t('Not set up yet. Answer a few questions and we will suggest daily calories and macros for you.')}</p>`}
+    <div class="acts" style="margin:0"><button class="btn solid" id="doProfile">${has?t('Redo profile'):t('Set up profile')}</button></div>
   </section>`;
 }
 
 function viewAccount(){
-  if(!sb) return `<h2>Account</h2>
-    <section class="card acct">
-      <div class="dhead"><h3>Local mode</h3></div>
-      <p style="margin:0 0 10px">No server configured, so data stays in this browser only — sync and shared kitchen are off.</p>
-      <p class="hint" style="margin:0">To turn them on, create a Supabase project, run <code>schema.sql</code>, and fill in the two lines in <code>config.js</code>.</p>
-    </section>
-    ${profileCard()}
-    <section class="card acct" style="margin-top:14px">
-      <div class="dhead"><h3>Data</h3></div>
-      <p class="hint" style="margin:0 0 10px">Download a copy of every target, day, food and saved combination.</p>
-      <div class="acts" style="margin:0"><button class="btn" id="btnExport">Back up</button></div>
+  const dataCard = `<section class="card acct" style="margin-top:14px">
+      <div class="dhead"><h3>${t('Data')}</h3></div>
+      <p class="hint" style="margin:0 0 10px">${t('Download a copy of every target, day, food and saved combination.')}</p>
+      <div class="acts" style="margin:0"><button class="btn" id="btnExport">${t('Back up')}</button></div>
     </section>`;
 
-  if(!SESSION) return `<h2>Account</h2>
+  if(!sb) return `<h2>${t('Account')}</h2>
     <section class="card acct">
-      <div class="dhead"><h3>Sign in</h3></div>
-      <p class="hint" style="margin:0 0 14px">Signing in stores your plans on the server, so your phone and computer see the same data. You can also keep using the app signed out — everything then stays in this browser.</p>
-      <div class="field"><label>Email</label><input type="email" id="aEmail" autocomplete="email"></div>
-      <div class="field"><label>Password</label><input type="password" id="aPass" autocomplete="current-password"></div>
-      <div class="acts" style="margin:0"><button class="btn solid" id="doLogin">Sign in</button><button class="btn" id="doSignup">Create account</button></div>
-      <p class="hint" id="aMsg" style="margin:12px 0 0"></p>
+      <div class="dhead"><h3>${t('Local mode')}</h3></div>
+      <p style="margin:0 0 10px">${t('No server configured, so data stays in this browser only — sync and shared kitchen are off.')}</p>
+      <p class="hint" style="margin:0">${t('To turn them on, create a Supabase project, run')} <code>schema.sql</code>, ${t('and fill in the two lines in')} <code>config.js</code>.</p>
     </section>
     ${profileCard()}
-    <section class="card acct" style="margin-top:14px">
-      <div class="dhead"><h3>Data</h3></div>
-      <p class="hint" style="margin:0 0 10px">Download a copy of every target, day, food and saved combination.</p>
-      <div class="acts" style="margin:0"><button class="btn" id="btnExport">Back up</button></div>
-    </section>`;
+    ${dataCard}`;
 
-  return `<h2>Account</h2>
+  if(!SESSION) return `<h2>${t('Account')}</h2>
     <section class="card acct">
-      <div class="dhead"><h3>Profile</h3></div>
-      <div class="field"><label>Signed in as</label><div>${esc(SESSION.user.email||'')}</div></div>
-      <div class="field"><label>Kitchen name</label>
-        <input type="text" id="houseName" value="${esc(HOUSE?.name||'')}" placeholder="My kitchen"></div>
-      <div class="acts" style="margin:0"><button class="btn" id="doLogout">Sign out</button></div>
+      <div class="dhead"><h3>${t('Sign in')}</h3></div>
+      <p class="hint" style="margin:0 0 14px">${t('Signing in stores your plans on the server, so your phone and computer see the same data. You can also keep using the app signed out — everything then stays in this browser.')}</p>
+      <div class="field"><label>${t('Email')}</label><input type="email" id="aEmail" autocomplete="email"></div>
+      <div class="field"><label>${t('Password')}</label><input type="password" id="aPass" autocomplete="current-password"></div>
+      <div class="acts" style="margin:0"><button class="btn solid" id="doLogin">${t('Sign in')}</button><button class="btn" id="doSignup">${t('Create account')}</button></div>
+      <p class="hint" style="margin:10px 0 0"><button class="btn ghost" id="doForgot" style="padding:2px 0">${t('Forgot password?')}</button></p>
+      <p class="hint" id="aMsg" style="margin:8px 0 0"></p>
+    </section>
+    ${profileCard()}
+    ${dataCard}`;
+
+  return `<h2>${t('Account')}</h2>
+    <section class="card acct">
+      <div class="dhead"><h3>${t('Profile')}</h3></div>
+      <div class="field"><label>${t('Signed in as')}</label><div>${esc(SESSION.user.email||'')}</div></div>
+      <div class="field"><label>${t('Kitchen name')}</label>
+        <input type="text" id="houseName" value="${esc(HOUSE?.name||'')}" placeholder="${t('My kitchen')}"></div>
+      <div class="acts" style="margin:0"><button class="btn" id="doLogout">${t('Sign out')}</button></div>
     </section>
 
     <section class="card acct" style="margin-top:14px">
-      <div class="dhead"><h3>Shared kitchen</h3></div>
-      <div class="field"><label>Your invite code</label>
+      <div class="dhead"><h3>${t('Shared kitchen')}</h3></div>
+      <div class="field"><label>${t('Your invite code')}</label>
         <div><span class="code">${esc(HOUSE?.invite_code||'—')}</span>
-          <button class="btn ghost" id="copyCode">copy</button></div>
-        <p class="hint" style="margin:6px 0 0">Give this code to a friend and you will share the same food list and saved combinations. Daily plans stay private to each person.</p></div>
-      <div class="field"><label>Join another kitchen</label><input type="text" id="joinCode" placeholder="6-character code"></div>
-      <div class="warn">Joining deletes your kitchen's food list and replaces it with theirs. Back up first.</div>
-      <div class="acts" style="margin:0"><button class="btn solid" id="doJoin">Join</button></div>
+          <button class="btn ghost" id="copyCode">${t('copy')}</button></div>
+        <p class="hint" style="margin:6px 0 0">${t('Give this code to a friend and you will share the same food list and saved combinations. Daily plans stay private to each person.')}</p></div>
+      <div class="field"><label>${t('Join another kitchen')}</label><input type="text" id="joinCode" placeholder="${t('6-character code')}"></div>
+      <div class="warn">${t("Joining deletes your kitchen's food list and replaces it with theirs. Back up first.")}</div>
+      <div class="acts" style="margin:0"><button class="btn solid" id="doJoin">${t('Join')}</button></div>
     </section>
 
     ${profileCard()}
-    <section class="card acct" style="margin-top:14px">
-      <div class="dhead"><h3>Data</h3></div>
-      <p class="hint" style="margin:0 0 10px">Download a copy of every target, day, food and saved combination.</p>
-      <div class="acts" style="margin:0"><button class="btn" id="btnExport">Back up</button></div>
-    </section>`;
+    ${dataCard}`;
 }
 function render(){
-  document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===S.tab)));
+  document.querySelectorAll('#tabs button').forEach(b=>{
+    b.setAttribute('aria-selected',String(b.dataset.tab===S.tab));
+    if(b.dataset.t) b.textContent=t(b.dataset.t);
+  });
+  document.documentElement.lang = LANG;
+  paintLangBtn();
   paintAccountBtn();
   $('#view').innerHTML = S.tab==='plan'?viewPlan():S.tab==='foods'?viewFoods():S.tab==='targets'?viewTargets():
                          S.tab==='saved'?viewSaved():viewAccount();
@@ -927,7 +1083,7 @@ function applyShared(d){
   (d.f||[]).forEach(f=>{ if(!F(f.id)) S.foods.push(f); });
   S.template=d.m.map((m,i)=>({id:'s'+i+uid(),name:m.n,t:m.t}));
   S.days[S.date]={}; d.m.forEach((m,i)=>{ S.days[S.date][S.template[i].id]=(m.i||[]).filter(x=>F(x[0])).map(x=>({fid:x[0],q:x[1],lock:false})); });
-  S.tab='plan'; touchProfile(); touchDay(); render(); toast('Shared plan loaded');
+  S.tab='plan'; touchProfile(); touchDay(); render(); toast(t('Shared plan loaded'));
 }
 function dayAsText(){
   const txt=S.template.map(m=>{const l=items(m.id); if(!l.length) return null; const t=mealTotals(m.id);
@@ -935,11 +1091,13 @@ function dayAsText(){
       l.map(i=>{const f=F(i.fid);return f?`  · ${f.n} ${i.q}${f.b==='100g'?' g':' '+f.u}`:'';}).join('\n');
   }).filter(Boolean).join('\n\n');
   const d=dayTotals().act;
-  return `${S.date}\n\n`+txt+`\n\nDAILY TOTAL: ${r0(d.k)} kcal · P${r0(d.p)} C${r0(d.c)} F${r0(d.f)}`;
+  const lbl = LANG==='ru' ? 'ИТОГО ЗА ДЕНЬ' : 'DAILY TOTAL';
+  return `${S.date}\n\n`+txt+`\n\n${lbl}: ${r0(d.k)} ${t('kcal')} · P${r0(d.p)} C${r0(d.c)} F${r0(d.f)}`;
 }
 
 /* ---------------- events ---------------- */
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)return; S.tab=b.dataset.tab; save(); render();});
+$('#langToggle').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; setLang(b.dataset.l); });
 
 async function goDate(d){ S.date=d; ALT={}; if(cloud()) { try{ await loadDay(d); }catch(e){ setStatus('wait'); } } save(); render(); }
 $('#btnAccount').addEventListener('click',()=>{ S.tab='account'; save(); render(); });
@@ -964,38 +1122,38 @@ $('#view').addEventListener('click',e=>{
       const g=gramsFrom(cfg.kcal,cfg.split);
       m.t={p:r1(g.p),c:r1(g.c),f:r1(g.f)};                       // the meal target is what you asked for
       const list=candidates(m,{must:cfg.picks});
-      if(!list.length){ toast('Could not build from those sources.'); touchProfile(); render(); return; }
+      if(!list.length){ toast(t('Could not build from those sources.')); touchProfile(); render(); return; }
       ALT[mid]={list,i:0}; applyCandidate(m,list[0]);
-      touchProfile(); touchDay(); render(); toast('Built to '+r0(cfg.kcal)+' kcal');
+      touchProfile(); touchDay(); render(); toast((LANG==='ru'?'Собрано на ':'Built to ')+r0(cfg.kcal)+' '+t('kcal'));
     });
     return; }
   if(act==='editfood'){ const id=b.closest('tr').dataset.f, f=F(id);
     foodDialog(f).then(async out=>{ if(!out) return;
       Object.assign(f,out);
       save(); if(cloud()) enqueue({op:'food',id:f.id});
-      render(); toast('Saved'); });
+      render(); toast(t('Saved')); });
     return; }
   if(act==='alt'){ nextAlt(mealEl.dataset.m); return; }
   if(act==='clear'){ const mid=mealEl.dataset.m; S.days[S.date][mid]=items(mid).filter(i=>i.lock); touchDay(); render(); return; }
   if(act==='savemeal'){
     const m=S.template.find(x=>x.id===mealEl.dataset.m), l=items(m.id);
-    if(!l.length){ toast('Fill the meal first.'); return; }
-    const t=mealTotals(m.id);
-    ask('Save combination',m.name+' — '+r0(t.k)+' kcal').then(async name=>{ if(!name) return;
-      const rec={id:uid(),name,items:l.map(i=>({fid:i.fid,q:i.q})),...t,mine:true};
+    if(!l.length){ toast(t('Fill the meal first.')); return; }
+    const tot=mealTotals(m.id);
+    ask(t('Save combination'),m.name+' — '+r0(tot.k)+' '+t('kcal')).then(async name=>{ if(!name) return;
+      const rec={id:uid(),name,items:l.map(i=>({fid:i.fid,q:i.q})),...tot,mine:true};
       if(cloud()){ const {data,error}=await sb.from('combos').insert({household_id:HH,user_id:SESSION.user.id,
-          name,items:rec.items,macros:{p:t.p,c:t.c,f:t.f,k:t.k}}).select().maybeSingle();
-        if(error){ toast('Could not save — no connection'); return; } rec.id=data.id; }
-      S.saved.unshift(rec); save(); toast('Saved'); });
+          name,items:rec.items,macros:{p:tot.p,c:tot.c,f:tot.f,k:tot.k}}).select().maybeSingle();
+        if(error){ toast(t('Could not save — no connection')); return; } rec.id=data.id; }
+      S.saved.unshift(rec); save(); toast(t('Saved')); });
     return; }
   if(act==='delfood'){ const id=b.closest('tr').dataset.f, f=F(id);
-    confirmBox('Delete food',`"${f?f.n:''}" will be removed from the list and from every meal using it.`,'Delete').then(ok=>{ if(!ok) return;
+    confirmBox(t('Delete food'),`"${f?f.n:''}" `+t('will be removed from the list and from every meal using it.'),t('Delete')).then(ok=>{ if(!ok) return;
       S.foods=S.foods.filter(x=>x.id!==id);
       Object.values(S.days).forEach(d=>Object.keys(d).forEach(k=>d[k]=d[k].filter(i=>i.fid!==id)));
       if(cloud()) enqueue({op:'delfood',id});
       touchDay(); render(); }); return; }
   if(act==='delmeal'){ const id=mealEl.dataset.m, m=S.template.find(x=>x.id===id);
-    confirmBox('Delete meal',`"${m?m.name:''}" and its targets will be deleted.`,'Delete').then(ok=>{ if(!ok) return;
+    confirmBox(t('Delete meal'),`"${m?m.name:''}" `+t('and its targets will be deleted.'),t('Delete')).then(ok=>{ if(!ok) return;
       S.template=S.template.filter(x=>x.id!==id);
       Object.values(S.days).forEach(d=>delete d[id]);
       touchProfile(); touchDay(); render(); }); return; }
@@ -1004,7 +1162,7 @@ $('#view').addEventListener('click',e=>{
   if(act==='load'){ const el=b.closest('[data-s]'), s=S.saved.find(x=>x.id===el.dataset.s);
     const mid=el.querySelector('[data-act=loadto]').value;
     S.days[S.date][mid]=s.items.map(i=>({...i,lock:false}));
-    touchDay(); S.tab='plan'; render(); toast('Loaded'); return; }
+    touchDay(); S.tab='plan'; render(); toast(t('Loaded')); return; }
 });
 
 $('#view').addEventListener('change',e=>{
@@ -1015,15 +1173,15 @@ $('#view').addEventListener('change',e=>{
   if(tr&&el.dataset.k){ const f=F(tr.dataset.f), k=el.dataset.k;
     if(k==='b'&&el.value!==f.b){ const to=el.value, fac=to==='piece'?1/100:100;
       Object.values(S.days).forEach(d=>Object.values(d).forEach(arr=>arr.forEach(i=>{ if(i.fid===f.id) i.q=r1(i.q*fac); })));
-      f.mn=r1(f.mn*fac); f.mx=r1(f.mx*fac); f.st=to==='piece'?0.5:10; f.u=to==='piece'?'adet':'g'; touchDay(); }
+      f.mn=r1(f.mn*fac); f.mx=r1(f.mx*fac); f.st=to==='piece'?0.5:10; f.u=to==='piece'?'pc':'g'; touchDay(); }
     f[k]= k==='use'?el.checked : (k==='n'||k==='b'||k==='role')?el.value : (+el.value||0);
     save(); if(cloud()) enqueue({op:'food',id:f.id});
     if(k==='b'||k==='n') render(); else ledger(); return; }
   if(el.id==='dDate'&&el.value){ goDate(el.value); return; }
-  if(el.id==='houseName'){ const name=el.value.trim()||'My kitchen';
+  if(el.id==='houseName'){ const name=el.value.trim()||t('My kitchen');
     if(HOUSE) HOUSE.name=name;
     if(cloud()) sb.from('households').update({name}).eq('id',HH)
-      .then(({error})=>toast(error?'Could not rename the kitchen':'Kitchen renamed'));
+      .then(({error})=>toast(error?t('Could not rename the kitchen'):t('Kitchen renamed')));
     return; }
   if(el.dataset.daily){ const k=el.dataset.daily, v=+el.value||0;
     if(k==='kcal') S.daily.kcal=Math.max(0,v);
@@ -1068,60 +1226,86 @@ function patchMeal(mid){
 document.addEventListener('click',async e=>{
   const id=e.target.id;
   if(id==='fillAll'){ S.template.forEach(m=>{ if(m.t.p+m.t.c+m.t.f>0){ const l=candidates(m); if(l.length){ALT[m.id]={list:l,i:0};applyCandidate(m,l[0]);} }});
-    touchDay(); render(); toast('Day filled'); }
+    touchDay(); render(); toast(t('Day filled')); }
   if(id==='copyPrev'){ const d=new Date(S.date); d.setDate(d.getDate()-1); const prev=d.toLocaleDateString('sv-SE');
     if(cloud()) await loadDay(prev);
     const p=S.days[prev];
-    if(!p||!Object.keys(p).length){ toast('No plan saved for yesterday.'); return; }
-    S.days[S.date]=JSON.parse(JSON.stringify(p)); touchDay(); render(); toast("Yesterday's plan copied"); }
+    if(!p||!Object.keys(p).length){ toast(t('No plan saved for yesterday.')); return; }
+    S.days[S.date]=JSON.parse(JSON.stringify(p)); touchDay(); render(); toast(t("Yesterday's plan copied")); }
   if(id==='dPrev') shiftDate(-1);
   if(id==='dNext') shiftDate(1);
   if(id==='dToday') goDate(today());
-  if(id==='normSplit'){ normalizeSplit(); touchProfile(); render(); toast('Split normalised to 100%'); }
-  if(id==='scaleMeals'){ scaleMealsToDaily(); touchProfile(); render(); toast('Meal targets scaled to the daily total'); }
+  if(id==='normSplit'){ normalizeSplit(); touchProfile(); render(); toast(t('Split normalised to 100%')); }
+  if(id==='scaleMeals'){ scaleMealsToDaily(); touchProfile(); render(); toast(t('Meal targets scaled to the daily total')); }
   if(id==='doProfile') runOnboarding();
-  if(id==='addMeal'){ S.template.push({id:uid(),name:'New meal',t:{p:0,c:0,f:0}}); touchProfile(); render(); }
+  if(id==='addMeal'){ S.template.push({id:uid(),name:t('New meal'),t:{p:0,c:0,f:0}}); touchProfile(); render(); }
   if(id==='addFood'){ foodDialog(null).then(async f=>{ if(!f) return;
     if(cloud()){ const {data,error}=await sb.from('foods').insert(toRow(f)).select().maybeSingle();
-      if(error){ toast('Could not add — no connection'); return; } f=fromRow(data); }
-    S.foods.unshift(f); foodFilter=''; save(); render(); toast('Food added'); }); }
-  if(id==='resetAll'){ confirmBox('Reset everything',"Targets, today's plan and the food list all go back to their starting state.",'Reset')
+      if(error){ toast(t('Could not add — no connection')); return; } f=fromRow(data); }
+    S.foods.unshift(f); foodFilter=''; save(); render(); toast(t('Food added')); }); }
+  if(id==='resetAll'){ confirmBox(t('Reset everything'),t("Targets, today's plan and the food list all go back to their starting state."),t('Reset'))
     .then(ok=>{ if(!ok) return; const keep=S.tab; S=defaultState(); S.tab=keep;
-      touchProfile(); touchDay(); render(); toast('Reset'); }); }
+      touchProfile(); touchDay(); render(); toast(t('Reset')); }); }
   if(id==='copyDay') copyText(dayAsText());
   if(id==='copyCode'&&HOUSE) copyText(HOUSE.invite_code);
   if(id==='btnShare'){ const url=shareLink();
-    modal('Share plan',`<p class="hint" style="margin:0 0 8px">This link carries the day's plan and targets — whoever opens it sees the same plan in their own Minumeal.</p><textarea id="mUrl" readonly style="height:96px">${esc(url)}</textarea>`,
-      [{label:'Close',ghost:true,value:'x'},{label:'Copy link',solid:true,value:'copy'}]).then(v=>{ if(v==='copy') copyText(url); }); }
+    modal(t('Share plan'),`<p class="hint" style="margin:0 0 8px">${t("This link carries the day's plan and targets — whoever opens it sees the same plan in their own Minumeal.")}</p><textarea id="mUrl" readonly style="height:96px">${esc(url)}</textarea>`,
+      [{label:t('Close'),ghost:true,value:'x'},{label:t('Copy link'),solid:true,value:'copy'}]).then(v=>{ if(v==='copy') copyText(url); }); }
   if(id==='btnExport'){ const json=JSON.stringify(S,null,2);
-    modal('Back up',`<p class="hint" style="margin:0 0 8px">Every target, day, food and saved combination.</p><textarea id="mJson" readonly>${esc(json)}</textarea>`,
-      [{label:'Close',ghost:true,value:'x'},{label:'Copy',value:'copy'},{label:'Download',solid:true,value:'dl'}]).then(v=>{
+    modal(t('Back up'),`<p class="hint" style="margin:0 0 8px">${t('Every target, day, food and saved combination.')}</p><textarea id="mJson" readonly>${esc(json)}</textarea>`,
+      [{label:t('Close'),ghost:true,value:'x'},{label:t('Copy'),value:'copy'},{label:t('Download'),solid:true,value:'dl'}]).then(v=>{
         if(v==='copy') copyText(json);
         if(v==='dl'){ try{ const a=document.createElement('a');
           a.href=URL.createObjectURL(new Blob([json],{type:'application/json'}));
-          a.download='minumeal-'+today()+'.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); toast('Backup downloaded');
-        }catch(err){ toast('Download blocked — you can copy the text instead.'); } } }); }
+          a.download='minumeal-'+today()+'.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); toast(t('Backup downloaded'));
+        }catch(err){ toast(t('Download blocked — you can copy the text instead.')); } } }); }
 
   /* hesap */
   if(id==='doLogin'||id==='doSignup'){
     const email=$('#aEmail').value.trim(), pass=$('#aPass').value;
-    if(!email||!pass){ $('#aMsg').textContent='Email and password are required.'; return; }
+    if(!email||!pass){ $('#aMsg').textContent=t('Email and password are required.'); return; }
     e.target.disabled=true; $('#aMsg').textContent='…';
     const {data,error}= id==='doSignup'
       ? await sb.auth.signUp({email,password:pass})
       : await sb.auth.signInWithPassword({email,password:pass});
     e.target.disabled=false;
     if(error){ $('#aMsg').textContent=error.message; return; }
-    if(id==='doSignup'&&!data.session){ $('#aMsg').textContent='Account created. Click the confirmation link in your email, then sign in.'; return; }
+    if(id==='doSignup'&&!data.session){ $('#aMsg').textContent=t('Account created. Click the confirmation link in your email, then sign in.'); return; }
+  }
+  if(id==='doForgot'){
+    const email=$('#aEmail')?.value.trim();
+    const target = email || await ask(t('Reset password'),t('Enter your email'));
+    if(!target) return;
+    const {error}=await sb.auth.resetPasswordForEmail(target, {redirectTo: location.origin+location.pathname});
+    const msg=$('#aMsg');
+    if(msg) msg.textContent = error ? error.message :
+      (LANG==='ru'?`Если у ${target} есть аккаунт, ссылка для сброса уже отправлена — проверьте почту.`
+                  :`If ${target} has an account, a reset link is on its way — check your inbox.`);
   }
   if(id==='doLogout'){ await sb.auth.signOut(); }
   if(id==='doJoin'){ const code=$('#joinCode').value.trim(); if(!code) return;
-    const ok=await confirmBox('Join kitchen','Your own food list will be deleted and replaced with theirs. Continue?','Join');
+    const ok=await confirmBox(t('Join kitchen'),t('Your own food list will be deleted and replaced with theirs. Continue?'),t('Join'));
     if(!ok) return;
     const {error}=await sb.rpc('join_household',{code});
     if(error){ toast(error.message); return; }
-    toast('Joined'); S.foods=[]; await cloudPull(); render(); }
+    toast(t('Joined')); S.foods=[]; await cloudPull(); render(); }
 });
+
+
+function resetPasswordDialog(){
+  const body=`<p class="hint" style="margin:0 0 12px">${t('Choose a new password for your account.')}</p>
+    <div class="field"><label>${t('New password')}</label><input type="password" id="rPass1" autocomplete="new-password"></div>
+    <div class="field"><label>${t('Confirm password')}</label><input type="password" id="rPass2" autocomplete="new-password"></div>
+    <p class="hint" id="rMsg" style="margin:0"></p>`;
+  modal(t('Set a new password'), body, [{label:t('Cancel'),ghost:true,value:null},{label:t('Save'),solid:true,value:'go'}]).then(async v=>{
+    if(v!=='go') return;
+    const p1=$('#rPass1')?.value||'', p2=$('#rPass2')?.value||'';
+    if(p1.length<6){ toast(t('Password must be at least 6 characters')); return resetPasswordDialog(); }
+    if(p1!==p2){ toast(t('Passwords do not match')); return resetPasswordDialog(); }
+    const {error}=await sb.auth.updateUser({password:p1});
+    toast(error?error.message:t('Password updated'));
+  });
+}
 
 /* ---------------- boot ---------------- */
 function adoptCache(){ const c=loadCache(); if(c&&c.template&&c.foods){ S=Object.assign(defaultState(),c); if(!S.days[S.date]) S.days[S.date]={}; } }
@@ -1133,8 +1317,8 @@ async function onSession(sess){
     adoptCache();
     if(!wasSignedIn&&S.tab==='account') S.tab='plan';   // land on the plan, not the sign-in screen
     setStatus('wait'); render();                        // paint now, sync in the background
-    try{ await cloudPull(); }catch(e){ setStatus('wait'); toast('Could not reach the server — continuing with the local copy.'); }
-    if(!wasSignedIn) toast('Signed in');
+    try{ await cloudPull(); }catch(e){ setStatus('wait'); toast(t('Could not reach the server — continuing with the local copy.')); }
+    if(!wasSignedIn) toast(t('Signed in'));
   } else { HH=HOUSE=null; if(CH){ sb?.removeChannel(CH); CH=null; } adoptCache(); setStatus('local'); }
   render();
 }
@@ -1145,7 +1329,10 @@ async function onSession(sess){
   if(sb){
     const {data}=await sb.auth.getSession();
     await onSession(data.session||null);
-    sb.auth.onAuthStateChange((_e,sess)=>{ if((sess?.user?.id||null)!==(SESSION?.user?.id||null)) onSession(sess||null); });
+    sb.auth.onAuthStateChange((evt,sess)=>{
+      if(evt==='PASSWORD_RECOVERY'){ resetPasswordDialog(); return; }
+      if((sess?.user?.id||null)!==(SESSION?.user?.id||null)) onSession(sess||null);
+    });
     setInterval(flush,20000);
     window.addEventListener('online',flush);
     document.addEventListener('visibilitychange',()=>{ if(!document.hidden) flush(); });
@@ -1153,7 +1340,7 @@ async function onSession(sess){
   const shared=readShared();
   if(shared){
     try{ history.replaceState(null,'',location.href.split('#')[0]); }catch(e){ location.hash=''; }
-    const ok=await confirmBox('Shared plan',"Someone shared a Minumeal plan. Load it? It replaces today's plan and your targets.",'Load');
+    const ok=await confirmBox(t('Shared plan'),t("Someone shared a Minumeal plan. Load it? It replaces today's plan and your targets."),t('Load'));
     if(ok) applyShared(shared);
   }
 })();
