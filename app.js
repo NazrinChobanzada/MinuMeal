@@ -222,7 +222,7 @@ const RU = {
   'Meal targets scaled to the daily total':'Цели приёмов пищи подогнаны под дневную сумму',
   'New meal':'Новый приём пищи',
   'Share plan':'Поделиться планом',
-  "This link carries the day's plan and targets — whoever opens it sees the same plan in their own Minumeal.":'Эта ссылка содержит план и цели дня — тот, кто её откроет, увидит тот же план в своём Minumeal.',
+  "This link carries the day's plan and targets — whoever opens it sees the same plan in their own Food's Up.":'Эта ссылка содержит план и цели дня — тот, кто её откроет, увидит тот же план в своём Food\'s Up.',
   'Close':'Закрыть','Copy link':'Копировать ссылку',
   'Every target, day, food and saved combination.':'Все цели, дни, продукты и сохранённые комбинации.',
   'Copy':'Копировать','Download':'Скачать','Backup downloaded':'Резервная копия скачана',
@@ -242,7 +242,7 @@ const RU = {
   'Could not reach the server — continuing with the local copy.':'Не удалось связаться с сервером — продолжаем с локальной копией.',
   'Signed in':'Вход выполнен',
   'Shared plan':'Общий план',
-  "Someone shared a Minumeal plan. Load it? It replaces today's plan and your targets.":'Кто-то поделился планом Minumeal. Загрузить? Он заменит план на сегодня и ваши цели.',
+  "Someone shared a Food's Up plan. Load it? It replaces today's plan and your targets.":'Кто-то поделился планом Food\'s Up. Загрузить? Он заменит план на сегодня и ваши цели.',
   'Shared plan loaded':'Общий план загружен',
   'Synced':'Синхронизировано','Changes pending':'Ожидает синхронизации','Offline':'Офлайн',
   'Calories are the budget: raise one macro and the other two give way to keep the split at 100%. Below, set each meal in grams, as a share of the day, or straight in calories — typing calories rescales that meal and keeps its own macro balance.':'Калории — это бюджет: увеличивая одну долю, вы уменьшаете две другие, чтобы сумма всегда была 100%. Ниже задайте каждый приём пищи в граммах, в процентах от дня или сразу в калориях — ввод калорий пересчитывает этот приём, сохраняя его баланс БЖУ.',
@@ -1254,7 +1254,7 @@ document.addEventListener('click',async e=>{
   if(id==='copyDay') copyText(dayAsText());
   if(id==='copyCode'&&HOUSE) copyText(HOUSE.invite_code);
   if(id==='btnShare'){ const url=shareLink();
-    modal(t('Share plan'),`<p class="hint" style="margin:0 0 8px">${t("This link carries the day's plan and targets — whoever opens it sees the same plan in their own Minumeal.")}</p><textarea id="mUrl" readonly style="height:96px">${esc(url)}</textarea>`,
+    modal(t('Share plan'),`<p class="hint" style="margin:0 0 8px">${t("This link carries the day's plan and targets — whoever opens it sees the same plan in their own Food's Up.")}</p><textarea id="mUrl" readonly style="height:96px">${esc(url)}</textarea>`,
       [{label:t('Close'),ghost:true,value:'x'},{label:t('Copy link'),solid:true,value:'copy'}]).then(v=>{ if(v==='copy') copyText(url); }); }
   if(id==='btnExport'){ const json=JSON.stringify(S,null,2);
     modal(t('Back up'),`<p class="hint" style="margin:0 0 8px">${t('Every target, day, food and saved combination.')}</p><textarea id="mJson" readonly>${esc(json)}</textarea>`,
@@ -1262,7 +1262,7 @@ document.addEventListener('click',async e=>{
         if(v==='copy') copyText(json);
         if(v==='dl'){ try{ const a=document.createElement('a');
           a.href=URL.createObjectURL(new Blob([json],{type:'application/json'}));
-          a.download='minumeal-'+today()+'.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); toast(t('Backup downloaded'));
+          a.download='foodsup-'+today()+'.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); toast(t('Backup downloaded'));
         }catch(err){ toast(t('Download blocked — you can copy the text instead.')); } } }); }
 
   /* hesap */
@@ -1345,7 +1345,7 @@ async function onSession(sess){
   const shared=readShared();
   if(shared){
     try{ history.replaceState(null,'',location.href.split('#')[0]); }catch(e){ location.hash=''; }
-    const ok=await confirmBox(t('Shared plan'),t("Someone shared a Minumeal plan. Load it? It replaces today's plan and your targets."),t('Load'));
+    const ok=await confirmBox(t('Shared plan'),t("Someone shared a Food's Up plan. Load it? It replaces today's plan and your targets."),t('Load'));
     if(ok) applyShared(shared);
   }
 })();

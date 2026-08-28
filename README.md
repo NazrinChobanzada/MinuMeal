@@ -1,4 +1,4 @@
-# Minumeal
+# Food's Up
 
 A macro planner: set protein / carb / fat targets per meal, and the app builds
 food combinations that hit them. No build step — plain HTML, CSS and JavaScript

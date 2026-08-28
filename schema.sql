@@ -1,5 +1,5 @@
 -- =====================================================================
---  Minumeal — database schema
+--  Food's Up — database schema
 --  Open the SQL Editor in your Supabase dashboard, paste this whole file, run it.
 --  Safe to run again (everything is "if not exists" / "or replace").
 -- =====================================================================
@@ -51,6 +51,13 @@ create table if not exists public.foods (
   updated_at timestamptz not null default now()
 );
 create index if not exists foods_household_idx on public.foods(household_id);
+-- Prevents the same food name being inserted twice for one kitchen (e.g. if
+-- the initial upload ever races or retries). uploadFoods() in app.js relies
+-- on this via upsert(...,{onConflict:'household_id,name'}).
+do $$ begin
+  alter table public.foods add constraint foods_household_name_uniq unique (household_id, name);
+exception when duplicate_object then null;
+end $$;
 
 -- Daily plan: private to each user, keyed by date. History accumulates here.
 create table if not exists public.days (
