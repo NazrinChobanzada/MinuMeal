@@ -1,0 +1,38 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Food's Up — macro planner</title>
+<meta name="theme-color" content="#EFF2E9">
+<meta name="description" content="A planner that builds meal combinations from per-meal protein, carb and fat targets.">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Cairo:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="favicon-32.png" sizes="32x32">
+<link rel="icon" href="icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<div class="top">
+  <div class="topin">
+    <div class="brandrow">
+      <div class="brand"><img src="logo-lockup.png" alt="Food's Up"></div>
+      <span class="spacer"></span>
+      <div class="langtoggle" id="langToggle"><button data-l="en">EN</button><button data-l="ru">RU</button><button data-l="ar">عربي</button></div>
+      <button class="acctbtn s-local" id="btnAccount"><span class="sdot"></span><span id="acctTxt">Sign in</span></button>
+    </div>
+    <div class="tabs" id="tabs">
+      <button data-tab="plan" data-t="Plan" aria-selected="true">Plan</button>
+      <button data-tab="foods" data-t="Foods" aria-selected="false">Foods</button>
+      <button data-tab="targets" data-t="Targets" aria-selected="false">Targets</button>
+      <button data-tab="saved" data-t="Saved" aria-selected="false">Saved</button>
+    </div>
+  </div>
+</div>
+<div class="wrap"><main id="view"></main></div>
+<div id="veil"><div class="modal" role="dialog" aria-modal="true"><h3 id="mTitle"></h3><div id="mBody"></div><div class="mrow" id="mBtns"></div></div></div>
+<div id="toast"></div>
+
+<script src="config.js"></script>
+<script src="foods.js"></script>
+<script src="app.js"></script>

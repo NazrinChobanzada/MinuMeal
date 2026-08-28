@@ -8,13 +8,23 @@ that the browser runs directly.
 
 | File | What it holds |
 |---|---|
-| `index.html` | Page shell: top bar, date strip, tabs. Rarely changes. |
-| `styles.css` | All the design. Colours and type live in the `:root` block at the top. |
+| `index.html` | **Landing page.** What visitors see first at the root URL — trilingual (EN/RU/AR), RTL-aware, with a working demo calculator. Links to `app.html`. |
+| `app.html` | The actual app shell: top bar, tabs. This is where sign-in lives. |
+| `styles.css` | All the design for the app (`app.html`). The landing page has its own inline styles, kept separate so it loads fast and never breaks if the app's CSS changes. |
 | `config.js` | Supabase URL and key. Leave empty to run in local mode. |
 | `foods.js` | Starting food list (43 entries). |
-| `app.js` | Application logic: account, generator, sync, views. |
+| `app.js` | Application logic: account, generator, sync, views, i18n. |
 | `schema.sql` | Supabase tables and security policies. |
-| `logo-*.png`, `favicon-*.png` | Brand assets. |
+| `logo-*.png`, `favicon-*.png` | Brand assets, shared by both pages. |
+
+## Two pages, one deploy
+
+`index.html` is the marketing/landing page — free-standing HTML/CSS/JS, no dependency on `app.js`. Its "Get started" and "Sign in" buttons link to `app.html?start=1`, which lands the visitor straight on the Account tab instead of the Plan tab.
+
+Its own language toggle writes to the same `localStorage` key the app uses (`minumeal:lang`), so a language choice made on the landing page carries over automatically once someone clicks through.
+
+If you ever change the Supabase **Site URL**, keep it pointed at your domain's root — the wildcard in **Redirect URLs** (`https://yourdomain/**`) already covers `/app.html`, so no extra Supabase configuration is needed for the two-page split.
+
 
 ## Running locally
 

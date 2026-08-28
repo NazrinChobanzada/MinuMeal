@@ -1,38 +1,348 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Food's Up — macro planner</title>
+<title>Food's Up — hit your macros without the spreadsheet</title>
 <meta name="theme-color" content="#EFF2E9">
-<meta name="description" content="A planner that builds meal combinations from per-meal protein, carb and fat targets.">
-<meta name="mobile-web-app-capable" content="yes">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+<meta name="description" content="Set your daily calories and macro split, build meals from foods you actually eat, and share a kitchen with your family. Free, no ads, works in your browser.">
 <link rel="icon" href="favicon-32.png" sizes="32x32">
 <link rel="icon" href="icon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Cairo:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EFF2E9; --card:#fff; --ink:#1E2A1C; --muted:#6E7A66; --line:#DEE4D6; --line2:#EFF2E9;
+  --brand:#3B5936; --brand-dk:#2F4A2B; --brand-lt:#83B145;
+  --pro:#3B4FB0; --carb:#B87A14; --fat:#17857C; --ok:#4A7A2C;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --body:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --disp:"Quicksand","Inter",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);line-height:1.5;-webkit-text-size-adjust:100%}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--pro);outline-offset:2px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;direction:ltr;unicode-bidi:isolate}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+img{max-width:100%;display:block}
+
+.top{position:sticky;top:0;z-index:20;background:rgba(239,242,233,.9);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+.topin{max-width:1080px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:12px}
+.brand img{height:28px;display:block}
+.spacer{flex:1}
+.langtoggle{display:inline-flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;background:var(--card)}
+.langtoggle button{background:none;border:0;padding:5px 10px;font-size:11px;font-family:var(--mono);color:var(--muted)}
+.langtoggle button.on{background:var(--brand);color:#fff;font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:8px 16px;font-size:13.5px;font-weight:600;border:1px solid var(--line);background:var(--card)}
+.btn:hover{border-color:var(--muted)}
+.btn.solid{background:var(--brand);color:#fff;border-color:var(--brand)}
+.btn.solid:hover{background:var(--brand-dk)}
+.btn.lg{padding:12px 24px;font-size:15px}
+
+.hero{padding:64px 0 40px;text-align:center}
+.eyebrow{display:inline-block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-dk);background:#E3ECD9;padding:5px 12px;border-radius:99px;margin-bottom:18px}
+h1{font-family:var(--disp);font-weight:700;font-size:clamp(30px,5vw,52px);line-height:1.08;margin:0 0 18px;letter-spacing:-.02em}
+.sub{font-size:17px;color:var(--muted);max-width:600px;margin:0 auto 30px;line-height:1.6}
+.herobtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}
+
+section{padding:56px 0}
+.kicker{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:0 0 8px}
+h2{font-family:var(--disp);font-weight:600;font-size:clamp(22px,3vw,32px);margin:0 0 10px;letter-spacing:-.01em}
+.lead{color:var(--muted);font-size:15.5px;max-width:560px;margin:0 0 34px;line-height:1.6}
+.center{text-align:center;margin-left:auto;margin-right:auto}
+
+.fgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.fcard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px}
+.ficon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;margin-bottom:14px}
+.ficon.p{background:#E9EBFA;color:var(--pro)} .ficon.c{background:#F7EEDC;color:var(--carb)}
+.ficon.f{background:#E1F1EE;color:var(--fat)} .ficon.b{background:#E3ECD9;color:var(--brand)}
+.fcard h3{font-family:var(--disp);font-weight:600;font-size:16.5px;margin:0 0 6px}
+.fcard p{color:var(--muted);font-size:13.8px;line-height:1.55;margin:0}
+
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:0}
+.step{position:relative;padding:0 20px 0 0}
+.step:not(:last-child){border-inline-end:1px dashed var(--line)}
+.stepnum{font-family:var(--disp);font-weight:700;font-size:34px;color:var(--brand-lt);margin-bottom:10px}
+.step h3{font-family:var(--disp);font-weight:600;font-size:16px;margin:0 0 6px}
+.step p{color:var(--muted);font-size:13.8px;line-height:1.55;margin:0}
+
+.demo{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px;max-width:820px;margin:0 auto}
+.demogrid{display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:start}
+.dfield{margin-bottom:13px}
+.dfield label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:5px}
+.dfield input,.dfield select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--paper);font-size:14px}
+.dfield input:focus,.dfield select:focus{border-color:var(--pro);background:var(--card)}
+.dseg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.dseg button{flex:1;background:var(--paper);border:0;padding:9px 6px;font-size:12.5px;color:var(--muted)}
+.dseg button.on{background:var(--brand);color:#fff;font-weight:600}
+.dresult{background:var(--paper);border-radius:14px;padding:20px}
+.dresult .kcal{font-family:var(--disp);font-weight:700;font-size:40px;color:var(--brand-dk);line-height:1}
+.dresult .kcalsub{color:var(--muted);font-size:13px;margin:4px 0 18px}
+.macrorow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.macrorow:first-of-type{border-top:0}
+.mlab{display:flex;align-items:center;gap:8px;font-size:13.5px}
+.dot{width:8px;height:8px;border-radius:99px;flex:none}
+.dot.p{background:var(--pro)} .dot.c{background:var(--carb)} .dot.f{background:var(--fat)}
+.mval{font-family:var(--mono);font-size:13.5px}
+.demonote{font-size:12px;color:var(--muted);margin-top:16px;line-height:1.5}
+.demoCTA{margin-top:18px;text-align:center}
+
+.finalcta{background:var(--brand);border-radius:20px;padding:52px 32px;text-align:center;color:#fff;max-width:920px;margin:0 auto}
+.finalcta h2{color:#fff}
+.finalcta p{color:#D9E4CE;max-width:480px;margin:0 auto 26px}
+.finalcta .btn.solid{background:#fff;color:var(--brand-dk);border-color:#fff}
+.finalcta .btn.solid:hover{background:#EFF2E9}
+
+footer{padding:32px 0 48px;color:var(--muted);font-size:12.5px;text-align:center}
+
+@media (max-width:820px){
+  .fgrid{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr;gap:24px}
+  .step:not(:last-child){border-inline-end:0;border-bottom:1px dashed var(--line);padding-bottom:20px}
+  .demogrid{grid-template-columns:1fr}
+}
+@media (max-width:520px){
+  .herobtns .btn{width:100%;justify-content:center}
+}
+</style>
 
 <div class="top">
   <div class="topin">
-    <div class="brandrow">
-      <div class="brand"><img src="logo-lockup.png" alt="Food's Up"></div>
-      <span class="spacer"></span>
-      <div class="langtoggle" id="langToggle"><button data-l="en">EN</button><button data-l="ru">RU</button></div>
-      <button class="acctbtn s-local" id="btnAccount"><span class="sdot"></span><span id="acctTxt">Sign in</span></button>
+    <div class="brand"><img src="logo-lockup.png" alt="Food's Up"></div>
+    <span class="spacer"></span>
+    <div class="langtoggle" id="langToggle">
+      <button data-l="en">EN</button><button data-l="ru">RU</button><button data-l="ar">عربي</button>
     </div>
-    <div class="tabs" id="tabs">
-      <button data-tab="plan" data-t="Plan" aria-selected="true">Plan</button>
-      <button data-tab="foods" data-t="Foods" aria-selected="false">Foods</button>
-      <button data-tab="targets" data-t="Targets" aria-selected="false">Targets</button>
-      <button data-tab="saved" data-t="Saved" aria-selected="false">Saved</button>
-    </div>
+    <a class="btn" id="navSignin" href="app.html?start=1" data-t="navSignin">Sign in</a>
   </div>
 </div>
-<div class="wrap"><main id="view"></main></div>
-<div id="veil"><div class="modal" role="dialog" aria-modal="true"><h3 id="mTitle"></h3><div id="mBody"></div><div class="mrow" id="mBtns"></div></div></div>
-<div id="toast"></div>
 
-<script src="config.js"></script>
-<script src="foods.js"></script>
-<script src="app.js"></script>
+<main>
+  <section class="hero wrap">
+    <span class="eyebrow" data-t="eyebrow">Free · no ads · runs in your browser</span>
+    <h1 data-t="h1"></h1>
+    <p class="sub" data-t="sub"></p>
+    <div class="herobtns">
+      <a class="btn solid lg" id="ctaStart" href="app.html?start=1" data-t="ctaStart">Get started free</a>
+      <a class="btn lg" href="#demo" data-t="ctaTry">Try the calculator</a>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <div class="fgrid">
+      <div class="fcard"><div class="ficon b">🎯</div><h3 data-t="f1h"></h3><p data-t="f1p"></p></div>
+      <div class="fcard"><div class="ficon p">🍳</div><h3 data-t="f2h"></h3><p data-t="f2p"></p></div>
+      <div class="fcard"><div class="ficon c">👨‍👩‍👧</div><h3 data-t="f3h"></h3><p data-t="f3p"></p></div>
+      <div class="fcard"><div class="ficon f">📅</div><h3 data-t="f4h"></h3><p data-t="f4p"></p></div>
+      <div class="fcard"><div class="ficon b">🌍</div><h3 data-t="f5h"></h3><p data-t="f5p"></p></div>
+      <div class="fcard"><div class="ficon p">🔒</div><h3 data-t="f6h"></h3><p data-t="f6p"></p></div>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <p class="kicker center" data-t="howkick"></p>
+    <h2 class="center" data-t="howh"></h2>
+    <p class="lead center" data-t="howp"></p>
+    <div class="steps">
+      <div class="step"><div class="stepnum">1</div><h3 data-t="s1h"></h3><p data-t="s1p"></p></div>
+      <div class="step"><div class="stepnum">2</div><h3 data-t="s2h"></h3><p data-t="s2p"></p></div>
+      <div class="step"><div class="stepnum">3</div><h3 data-t="s3h"></h3><p data-t="s3p"></p></div>
+    </div>
+  </section>
+
+  <section class="wrap" id="demo">
+    <p class="kicker center" data-t="demokick"></p>
+    <h2 class="center" data-t="demoh"></h2>
+    <p class="lead center" data-t="demop"></p>
+    <div class="demo">
+      <div class="demogrid">
+        <div>
+          <div class="dfield"><label data-t="dl_sex"></label>
+            <div class="dseg" data-w="sex"><button data-v="male" class="on" data-t="dv_male"></button><button data-v="female" data-t="dv_female"></button></div></div>
+          <div class="dfield"><label data-t="dl_age"></label><input type="number" id="dAge" value="30" min="14" max="90"></div>
+          <div class="dfield"><label data-t="dl_height"></label><input type="number" id="dHeight" value="172" min="120" max="220"></div>
+          <div class="dfield"><label data-t="dl_weight"></label><input type="number" id="dWeight" value="76" min="35" max="220"></div>
+          <div class="dfield"><label data-t="dl_activity"></label>
+            <select id="dActivity">
+              <option value="1.2" data-t="dv_sedentary"></option>
+              <option value="1.375" selected data-t="dv_light"></option>
+              <option value="1.55" data-t="dv_active"></option>
+              <option value="1.725" data-t="dv_veryactive"></option>
+            </select></div>
+          <div class="dfield"><label data-t="dl_goal"></label>
+            <div class="dseg" data-w="goal">
+              <button data-v="-1" data-t="dv_lose"></button>
+              <button data-v="0" class="on" data-t="dv_maintain"></button>
+              <button data-v="1" data-t="dv_gain"></button>
+            </div></div>
+        </div>
+        <div class="dresult">
+          <div class="kcal num" id="dKcal">2,011</div>
+          <div class="kcalsub" data-t="dr_perday"></div>
+          <div class="macrorow"><span class="mlab"><span class="dot p"></span><span data-t="dr_protein"></span></span><span class="mval num" id="dP">198 g</span></div>
+          <div class="macrorow"><span class="mlab"><span class="dot c"></span><span data-t="dr_carbs"></span></span><span class="mval num" id="dC">177 g</span></div>
+          <div class="macrorow"><span class="mlab"><span class="dot f"></span><span data-t="dr_fat"></span></span><span class="mval num" id="dF">57 g</span></div>
+        </div>
+      </div>
+      <p class="demonote" data-t="demonote"></p>
+      <div class="demoCTA"><a class="btn solid" id="ctaDemo" href="app.html?start=1" data-t="demoCTA"></a></div>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <div class="finalcta">
+      <h2 data-t="finalh"></h2>
+      <p data-t="finalp"></p>
+      <a class="btn solid lg" href="app.html?start=1" data-t="ctaStart">Get started free</a>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <span data-t="footer"></span>
+</footer>
+
+<script>
+const T = {
+  en: {
+    navSignin:'Sign in',
+    eyebrow:'Free · no ads · runs in your browser',
+    h1:'Hit your macros without the spreadsheet',
+    sub:"Set a daily calorie and protein/carb/fat target, then build real meals from foods you actually eat. Food's Up does the math; you just pick what's for dinner.",
+    ctaStart:'Get started free', ctaTry:'Try the calculator ↓',
+    f1h:'Calories first, macros follow', f1p:"Tell it your stats and goal — it estimates calories and a protein/carb/fat split with a real formula, not a guess.",
+    f2h:'Meal builder', f2p:'Pick a protein, a carb and a fat source for a meal and it solves the portions to hit your target, down to the gram.',
+    f3h:'Shared kitchen', f3p:'Invite one person and share the same food list and saved combinations. Everyone keeps their own daily targets.',
+    f4h:'A real food diary', f4p:'Every day is saved. Look back a week, copy yesterday forward, or compare how a goal changed things over time.',
+    f5h:'English, Russian, Arabic', f5p:'Full right-to-left layout for Arabic, not just translated labels bolted onto a left-to-right page.',
+    f6h:'Your data, your account', f6p:'Sign in and it syncs across your phone and computer. Skip sign-in and it just stays in this browser.',
+    howkick:'How it works', howh:'Three steps, no calorie-counting app fatigue', howp:'No ads, no subscriptions, no streaks to keep alive.',
+    s1h:'Set your target', s1p:'Answer a few questions once — age, height, weight, goal — or just type in numbers you already know.',
+    s2h:'Build your meals', s2p:'Pick your usual foods per meal. The app finds the portions. Swap anything, lock what you already have.',
+    s3h:'Track and share', s3p:'Your plan is saved every day. Share a link with someone, or keep a running food list with your household.',
+    demokick:'Try it now', demoh:'See your numbers before you sign up', demop:'The same formula the app uses — Mifflin-St Jeor for calories, body-weight-based protein and fat, carbs fill the rest.',
+    dl_sex:'Sex', dv_male:'Male', dv_female:'Female',
+    dl_age:'Age', dl_height:'Height (cm)', dl_weight:'Weight (kg)',
+    dl_activity:'Activity',
+    dv_sedentary:'Sedentary (little exercise)', dv_light:'Light (1–3 days/week)', dv_active:'Active (3–5 days/week)', dv_veryactive:'Very active (6–7 days/week)',
+    dl_goal:'Goal', dv_lose:'Lose', dv_maintain:'Maintain', dv_gain:'Gain',
+    dr_perday:'estimated calories per day',
+    dr_protein:'Protein', dr_carbs:'Carbs', dr_fat:'Fat',
+    demonote:'A starting point, not medical advice. In the app you can fine-tune every number and split it across your own meals.',
+    demoCTA:'Save these targets — get started free',
+    finalh:'Stop guessing what to eat', finalp:"It's free, it works offline, and your first plan takes about two minutes to set up.",
+    footer:"Food's Up — a macro planner. No account required to look around.",
+  },
+  ru: {
+    navSignin:'Войти',
+    eyebrow:'Бесплатно · без рекламы · работает в браузере',
+    h1:'Попадайте в свои БЖУ без таблиц Excel',
+    sub:'Задайте дневную цель по калориям и белкам/углеводам/жирам, а затем составляйте реальные приёмы пищи из продуктов, которые вы правда едите. Food\'s Up считает — вы просто выбираете, что на ужин.',
+    ctaStart:'Начать бесплатно', ctaTry:'Попробовать калькулятор ↓',
+    f1h:'Сначала калории, БЖУ следом', f1p:'Укажите свои данные и цель — приложение оценит калории и распределение белков/углеводов/жиров по настоящей формуле, а не наугад.',
+    f2h:'Сборщик приёмов пищи', f2p:'Выберите источник белка, углеводов и жиров для приёма пищи — граммовки подберутся так, чтобы точно попасть в цель.',
+    f3h:'Общая кухня', f3p:'Пригласите одного человека — и делитесь одним списком продуктов и сохранёнными комбинациями. Дневные цели у каждого свои.',
+    f4h:'Настоящий дневник питания', f4p:'Каждый день сохраняется. Загляните в прошлую неделю, скопируйте вчерашний план или сравните, как цель повлияла на рацион со временем.',
+    f5h:'Английский, русский, арабский', f5p:'Полноценная раскладка справа налево для арабского — а не просто переведённые подписи поверх исходной вёрстки.',
+    f6h:'Ваши данные, ваш аккаунт', f6p:'Войдите — и всё синхронизируется между телефоном и компьютером. Не хотите входить — всё останется в этом браузере.',
+    howkick:'Как это работает', howh:'Три шага, без усталости от подсчёта калорий', howp:'Без рекламы, без подписок, без "серий дней подряд", которые нужно поддерживать.',
+    s1h:'Задайте цель', s1p:'Ответьте один раз на несколько вопросов — возраст, рост, вес, цель — или просто впишите уже известные вам цифры.',
+    s2h:'Соберите приёмы пищи', s2p:'Выберите привычные продукты для каждого приёма пищи. Приложение подберёт граммовки. Меняйте что угодно, закрепляйте то, что уже есть.',
+    s3h:'Отслеживайте и делитесь', s3p:'План сохраняется каждый день. Поделитесь ссылкой с кем-то или ведите общий список продуктов с семьёй.',
+    demokick:'Попробуйте сейчас', demoh:'Узнайте свои цифры ещё до регистрации', demop:'Та же формула, что и в приложении — Миффлина-Сан Жеора для калорий, белок и жир по весу тела, углеводы добирают остальное.',
+    dl_sex:'Пол', dv_male:'Мужской', dv_female:'Женский',
+    dl_age:'Возраст', dl_height:'Рост (см)', dl_weight:'Вес (кг)',
+    dl_activity:'Активность',
+    dv_sedentary:'Малоподвижный (мало нагрузки)', dv_light:'Лёгкая (1–3 дня/нед)', dv_active:'Активный (3–5 дней/нед)', dv_veryactive:'Очень активный (6–7 дней/нед)',
+    dl_goal:'Цель', dv_lose:'Похудеть', dv_maintain:'Поддерживать', dv_gain:'Набрать',
+    dr_perday:'расчётные калории в день',
+    dr_protein:'Белки', dr_carbs:'Углеводы', dr_fat:'Жиры',
+    demonote:'Это отправная точка, а не медицинская рекомендация. В приложении можно точно настроить каждую цифру и распределить её по своим приёмам пищи.',
+    demoCTA:'Сохранить эти цели — начать бесплатно',
+    finalh:'Перестаньте гадать, что съесть', finalp:'Это бесплатно, работает офлайн, а первый план настраивается примерно за две минуты.',
+    footer:"Food's Up — планировщик БЖУ. Аккаунт для просмотра не нужен.",
+  },
+  ar: {
+    navSignin:'تسجيل الدخول',
+    eyebrow:'مجاني · بلا إعلانات · يعمل في متصفحك',
+    h1:'حقّق أهداف عناصرك الغذائية بلا جداول بيانات',
+    sub:'حدّد هدفك اليومي من السعرات والبروتين والكربوهيدرات والدهون، ثم كوّن وجبات حقيقية من أطعمة تأكلها فعلًا. تطبيق Food\'s Up يقوم بالحسابات، وأنت فقط تختار ماذا تأكل.',
+    ctaStart:'ابدأ مجانًا', ctaTry:'جرّب الحاسبة ↓',
+    f1h:'السعرات أولًا، ثم العناصر الغذائية', f1p:'أدخل بياناتك وهدفك — سيقدّر التطبيق السعرات وتوزيع البروتين والكربوهيدرات والدهون بمعادلة حقيقية، لا تخمينًا.',
+    f2h:'مُنشئ الوجبات', f2p:'اختر مصدر بروتين وكربوهيدرات ودهون لوجبة، وسيحسب التطبيق الكميات للوصول إلى هدفك بدقة الجرام.',
+    f3h:'مطبخ مشترك', f3p:'ادعُ شخصًا واحدًا وشاركا قائمة الأطعمة نفسها والتركيبات المحفوظة. يحتفظ كل شخص بأهدافه اليومية الخاصة.',
+    f4h:'مذكرة طعام حقيقية', f4p:'يُحفظ كل يوم. راجع الأسبوع الماضي، انسخ خطة الأمس، أو قارن كيف أثّر هدف معيّن على نظامك الغذائي بمرور الوقت.',
+    f5h:'الإنجليزية والروسية والعربية', f5p:'تخطيط كامل من اليمين إلى اليسار للعربية، وليس مجرد ترجمة نصوص فوق تصميم من اليسار إلى اليمين.',
+    f6h:'بياناتك، حسابك', f6p:'سجّل الدخول وستتم المزامنة بين هاتفك وحاسوبك. تخطَّ تسجيل الدخول وستبقى البيانات في هذا المتصفح فقط.',
+    howkick:'كيف يعمل', howh:'ثلاث خطوات، بلا إرهاق حساب السعرات', howp:'بلا إعلانات، بلا اشتراكات، وبلا "سلاسل أيام" يجب الحفاظ عليها.',
+    s1h:'حدّد هدفك', s1p:'أجب عن بضعة أسئلة مرة واحدة — العمر والطول والوزن والهدف — أو أدخل أرقامًا تعرفها بالفعل.',
+    s2h:'كوّن وجباتك', s2p:'اختر أطعمتك المعتادة لكل وجبة. سيجد التطبيق الكميات المناسبة. بدّل أي شيء، وثبّت ما تريد الاحتفاظ به.',
+    s3h:'تتبّع وشارك', s3p:'تُحفظ خطتك كل يوم. شارك رابطًا مع شخص ما، أو احتفظ بقائمة أطعمة مشتركة مع أسرتك.',
+    demokick:'جرّب الآن', demoh:'اطّلع على أرقامك قبل التسجيل', demop:'المعادلة نفسها المستخدمة في التطبيق — Mifflin-St Jeor للسعرات، والبروتين والدهون حسب وزن الجسم، وتكمل الكربوهيدرات الباقي.',
+    dl_sex:'الجنس', dv_male:'ذكر', dv_female:'أنثى',
+    dl_age:'العمر', dl_height:'الطول (سم)', dl_weight:'الوزن (كجم)',
+    dl_activity:'النشاط',
+    dv_sedentary:'قليل الحركة (نشاط قليل)', dv_light:'خفيف (1–3 أيام/أسبوع)', dv_active:'نشيط (3–5 أيام/أسبوع)', dv_veryactive:'نشيط جدًا (6–7 أيام/أسبوع)',
+    dl_goal:'الهدف', dv_lose:'إنقاص', dv_maintain:'الحفاظ', dv_gain:'زيادة',
+    dr_perday:'السعرات الحرارية المقدَّرة يوميًا',
+    dr_protein:'البروتين', dr_carbs:'الكربوهيدرات', dr_fat:'الدهون',
+    demonote:'هذه نقطة بداية، وليست نصيحة طبية. في التطبيق يمكنك ضبط كل رقم بدقة وتوزيعه على وجباتك الخاصة.',
+    demoCTA:'احفظ هذه الأهداف — ابدأ مجانًا',
+    finalh:'كفى تخمينًا لما ستأكله', finalp:'إنه مجاني، يعمل بلا اتصال، وإعداد أول خطة لك يستغرق دقيقتين تقريبًا.',
+    footer:"Food's Up — مخطط للعناصر الغذائية. لا حاجة لحساب لتصفّح التطبيق.",
+  }
+};
+
+let LANG = (()=>{ try{ return localStorage.getItem('minumeal:lang')||'en'; }catch(e){ return 'en'; } })();
+
+function applyLang(){
+  const dict = T[LANG] || T.en;
+  document.documentElement.lang = LANG;
+  document.documentElement.dir = LANG==='ar' ? 'rtl' : 'ltr';
+  document.querySelectorAll('[data-t]').forEach(el=>{
+    const key = el.dataset.t;
+    if(dict[key] !== undefined) el.textContent = dict[key];
+  });
+  document.querySelectorAll('#langToggle button').forEach(b=>b.classList.toggle('on', b.dataset.l===LANG));
+  runDemo();
+}
+document.getElementById('langToggle').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  LANG = b.dataset.l;
+  try{ localStorage.setItem('minumeal:lang', LANG); }catch(e){}
+  applyLang();
+});
+
+/* ---- mini demo calculator (same formulas as the app's onboarding — see app.js calcTargets) ---- */
+const $ = s => document.querySelector(s);
+document.querySelectorAll('[data-w] button').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on', x===b));
+    runDemo();
+  });
+});
+['dAge','dHeight','dWeight','dActivity'].forEach(id=>$('#'+id).addEventListener('input', runDemo));
+$('#dActivity').addEventListener('change', runDemo);
+
+function runDemo(){
+  const sex = document.querySelector('[data-w="sex"] .on')?.dataset.v || 'male';
+  const goal = +(document.querySelector('[data-w="goal"] .on')?.dataset.v || 0);
+  const age = +$('#dAge').value || 30, h = +$('#dHeight').value || 170, w = +$('#dWeight').value || 70;
+  const act = +$('#dActivity').value || 1.375;
+  const bmr = sex==='female' ? (10*w+6.25*h-5*age-161) : (10*w+6.25*h-5*age+5);
+  const tdee = bmr*act;
+  const kcal = Math.round(goal<0 ? tdee*0.85 : goal>0 ? tdee*1.15 : tdee);
+  const protein = w * (goal<0 ? 2.2 : 1.8);
+  const fat = w * 0.8;
+  const carbs = Math.max(0, (kcal - protein*4 - fat*9)/4);
+  const fmt = n => n.toLocaleString('en-US');
+  $('#dKcal').textContent = fmt(kcal);
+  $('#dP').textContent = fmt(Math.round(protein))+' g';
+  $('#dC').textContent = fmt(Math.round(carbs))+' g';
+  $('#dF').textContent = fmt(Math.round(fat))+' g';
+}
+
+applyLang();
+</script>
