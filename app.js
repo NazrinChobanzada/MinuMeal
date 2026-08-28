@@ -6,6 +6,7 @@ const sb = (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase)
 
 let SESSION=null, HH=null, HOUSE=null, CH=null;
 let START_FLAG=false;   // true when arriving via ?start=1 (landing page "Get started") — see boot IIFE
+let ONBOARD_PROMPTED=false;   // prevents the calculator popup from firing twice (once on load, once on sign-in)
 const cloud=()=>!!(sb&&SESSION);
 
 /* ---------------- state ---------------- */
@@ -1131,7 +1132,10 @@ function mealCard(m){
       <button class="btn ghost" data-act="savemeal">${t('Save')}</button>
       <button class="btn ghost" data-act="clear">${t('Clear')}</button></div></section>`;
 }
-const viewPlan=()=>`<div class="datebar">
+const viewPlan=()=>`${!S.profile?.done?`<div class="calcbanner">
+    <span>${t('Not set up yet. Answer a few questions and we will suggest daily calories and macros for you.')}</span>
+    <button class="btn solid" id="bannerCalc">${t('Set up profile')}</button></div>`:''}
+  <div class="datebar">
     <button class="dnav" id="dPrev" aria-label="${t('previous day')}">‹</button>
     <input type="date" id="dDate">
     <button class="dnav" id="dNext" aria-label="${t('next day')}">›</button>
@@ -1506,7 +1510,7 @@ document.addEventListener('click',async e=>{
   if(id==='dToday') goDate(today());
   if(id==='normSplit'){ normalizeSplit(); touchProfile(); render(); toast(t('Split normalised to 100%')); }
   if(id==='scaleMeals'){ scaleMealsToDaily(); touchProfile(); render(); toast(t('Meal targets scaled to the daily total')); }
-  if(id==='doProfile') runOnboarding();
+  if(id==='doProfile'||id==='bannerCalc') runOnboarding();
   if(id==='openSignIn') signInDialog();
   if(id==='menuSettings'){ toggleAccountMenu(false); S.tab='account'; save(); render(); }
   if(id==='menuSignout'){ toggleAccountMenu(false); await sb.auth.signOut(); location.href='index.html'; }
@@ -1612,9 +1616,10 @@ async function onSession(sess){
     try{ await cloudPull(); }catch(e){ setStatus('wait'); toast(t('Could not reach the server — continuing with the local copy.')); }
     if(!wasSignedIn){
       toast(t('Signed in'));
-      // suppressed the general first-load auto-trigger for ?start=1 to avoid clashing with the sign-in
-      // modal; now that sign-in is actually done, offer the calorie/macro calculator right away.
-      if(START_FLAG && !S.profile?.done) setTimeout(()=>{ if(!S.profile?.done) runOnboarding(); }, 300);
+      // fires for ANY fresh sign-in (header modal, landing-page arrival, etc.), not just ?start=1 —
+      // guarded so it never fires twice alongside the general first-load trigger below.
+      if(!S.profile?.done && !ONBOARD_PROMPTED){ ONBOARD_PROMPTED=true;
+        setTimeout(()=>{ if(!S.profile?.done) runOnboarding(); }, 300); }
     }
   } else { HH=HOUSE=null; if(CH){ sb?.removeChannel(CH); CH=null; } adoptCache(); setStatus('local'); }
   render();
@@ -1625,7 +1630,7 @@ async function onSession(sess){
   try{ START_FLAG = !!new URLSearchParams(location.search).get('start');
     if(START_FLAG){ S.tab='plan'; history.replaceState(null,'',location.pathname+location.hash); } }catch(e){}
   setStatus(sb?'wait':'local'); render();
-  if(!readShared()&&!S.profile?.done&&!START_FLAG) setTimeout(()=>{ if(!S.profile?.done) runOnboarding(); }, 400);
+  if(!readShared()&&!S.profile?.done&&!START_FLAG) setTimeout(()=>{ if(!S.profile?.done&&!ONBOARD_PROMPTED){ ONBOARD_PROMPTED=true; runOnboarding(); } }, 400);
   if(sb){
     const {data}=await sb.auth.getSession();
     await onSession(data.session||null);

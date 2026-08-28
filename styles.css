@@ -249,3 +249,10 @@ th.n{text-align:end}
 .acctmenu button{background:none;border:0;text-align:start;padding:8px 10px;border-radius:7px;font-size:13px}
 .acctmenu button:hover{background:var(--line2)}
 .acctmenu #menuSignout{color:var(--over)}
+
+/* ---- persistent "set up your target" banner on the Plan tab ---- */
+.calcbanner{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  background:#E3ECD9;border:1px solid var(--brand-lt);border-radius:12px;
+  padding:12px 16px;margin:20px 0 0}
+.calcbanner span{flex:1;min-width:180px;font-size:13px;color:var(--brand-dk);line-height:1.4}
+.calcbanner .btn{flex:none}
