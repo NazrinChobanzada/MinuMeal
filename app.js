@@ -244,7 +244,7 @@ const RU = {
   'Shared plan':'Общий план',
   "Someone shared a Food's Up plan. Load it? It replaces today's plan and your targets.":'Кто-то поделился планом Food\'s Up. Загрузить? Он заменит план на сегодня и ваши цели.',
   'Shared plan loaded':'Общий план загружен',
-  'Synced':'Синхронизировано','Changes pending':'Ожидает синхронизации','Offline':'Офлайн',
+  'Synced':'Синхронизировано','Changes pending':'Ожидает синхронизации','Offline':'Офлайн','Settings':'Настройки',
   'Calories are the budget: raise one macro and the other two give way to keep the split at 100%. Below, set each meal in grams, as a share of the day, or straight in calories — typing calories rescales that meal and keeps its own macro balance.':'Калории — это бюджет: увеличивая одну долю, вы уменьшаете две другие, чтобы сумма всегда была 100%. Ниже задайте каждый приём пищи в граммах, в процентах от дня или сразу в калориях — ввод калорий пересчитывает этот приём, сохраняя его баланс БЖУ.',
 };
 const AR = {
@@ -504,6 +504,7 @@ const AR = {
   "Synced":"تمت المزامنة",
   "Changes pending":"تغييرات معلَّقة",
   "Offline":"غير متصل",
+  "Settings":"الإعدادات",
   "Calories are the budget: raise one macro and the other two give way to keep the split at 100%. Below, set each meal in grams, as a share of the day, or straight in calories — typing calories rescales that meal and keeps its own macro balance.":"السعرات الحرارية هي الميزانية: عند زيادة أحد العناصر الغذائية، يتراجع العنصران الآخران للحفاظ على مجموع 100%. أدناه، حدّد كل وجبة بالجرام، أو كنسبة من اليوم، أو مباشرة بالسعرات — كتابة السعرات تعيد ضبط تلك الوجبة مع الحفاظ على توازن عناصرها الغذائية.",
 };
 function t(key){ const d=LANG==='ru'?RU:LANG==='ar'?AR:null; return d?(d[key]||key):key; }
@@ -556,6 +557,8 @@ function paintAccountBtn(){
               : (sb ? t('Sign in') : t('Local mode'));
   el.title = SESSION ? ({ok:t('Synced'),wait:t('Changes pending'),local:t('Offline')}[status]) : label;
   $('#acctTxt').textContent = label.length>22 ? label.slice(0,20)+'…' : label;
+  const menu=$('#acctMenu');
+  if(menu) menu.innerHTML = `<button id="menuSettings">${t('Settings')}</button><button id="menuSignout">${t('Sign out')}</button>`;
 }
 
 
@@ -1269,7 +1272,7 @@ function viewAccount(){
       <div class="acts" style="margin:0"><button class="btn" id="btnExport">${t('Back up')}</button></div>
     </section>`;
 
-  if(!sb) return `<h2>${t('Account')}</h2>
+  if(!sb) return `<h2>${t('Settings')}</h2>
     <section class="card acct">
       <div class="dhead"><h3>${t('Local mode')}</h3></div>
       <p style="margin:0 0 10px">${t('No server configured, so data stays in this browser only — sync and shared kitchen are off.')}</p>
@@ -1278,26 +1281,21 @@ function viewAccount(){
     ${profileCard()}
     ${dataCard}`;
 
-  if(!SESSION) return `<h2>${t('Account')}</h2>
+  if(!SESSION) return `<h2>${t('Settings')}</h2>
     <section class="card acct">
       <div class="dhead"><h3>${t('Sign in')}</h3></div>
       <p class="hint" style="margin:0 0 14px">${t('Signing in stores your plans on the server, so your phone and computer see the same data. You can also keep using the app signed out — everything then stays in this browser.')}</p>
-      <div class="field"><label>${t('Email')}</label><input type="email" id="aEmail" autocomplete="email"></div>
-      <div class="field"><label>${t('Password')}</label><input type="password" id="aPass" autocomplete="current-password"></div>
-      <div class="acts" style="margin:0"><button class="btn solid" id="doLogin">${t('Sign in')}</button><button class="btn" id="doSignup">${t('Create account')}</button></div>
-      <p class="hint" style="margin:10px 0 0"><button class="btn ghost" id="doForgot" style="padding:2px 0">${t('Forgot password?')}</button></p>
-      <p class="hint" id="aMsg" style="margin:8px 0 0"></p>
+      <div class="acts" style="margin:0"><button class="btn solid" id="openSignIn">${t('Sign in')}</button></div>
     </section>
     ${profileCard()}
     ${dataCard}`;
 
-  return `<h2>${t('Account')}</h2>
+  return `<h2>${t('Settings')}</h2>
     <section class="card acct">
       <div class="dhead"><h3>${t('Profile')}</h3></div>
       <div class="field"><label>${t('Signed in as')}</label><div>${esc(SESSION.user.email||'')}</div></div>
       <div class="field"><label>${t('Kitchen name')}</label>
         <input type="text" id="houseName" value="${esc(HOUSE?.name||'')}" placeholder="${t('My kitchen')}"></div>
-      <div class="acts" style="margin:0"><button class="btn" id="doLogout">${t('Sign out')}</button></div>
     </section>
 
     <section class="card acct" style="margin-top:14px">
@@ -1366,7 +1364,11 @@ $('#tabs').addEventListener('click',e=>{const b=e.target.closest('button'); if(!
 $('#langToggle').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; setLang(b.dataset.l); });
 
 async function goDate(d){ S.date=d; ALT={}; if(cloud()) { try{ await loadDay(d); }catch(e){ setStatus('wait'); } } save(); render(); }
-$('#btnAccount').addEventListener('click',()=>{ S.tab='account'; save(); render(); });
+$('#btnAccount').addEventListener('click',()=>{
+  if(!sb){ S.tab='account'; save(); render(); return; }
+  if(!SESSION){ signInDialog(); return; }
+  toggleAccountMenu();
+});
 const shiftDate=n=>{ const d=new Date(S.date); d.setDate(d.getDate()+n); goDate(d.toLocaleDateString('sv-SE')); };
 
 $('#view').addEventListener('click',e=>{
@@ -1504,6 +1506,9 @@ document.addEventListener('click',async e=>{
   if(id==='normSplit'){ normalizeSplit(); touchProfile(); render(); toast(t('Split normalised to 100%')); }
   if(id==='scaleMeals'){ scaleMealsToDaily(); touchProfile(); render(); toast(t('Meal targets scaled to the daily total')); }
   if(id==='doProfile') runOnboarding();
+  if(id==='openSignIn') signInDialog();
+  if(id==='menuSettings'){ toggleAccountMenu(false); S.tab='account'; save(); render(); }
+  if(id==='menuSignout'){ toggleAccountMenu(false); await sb.auth.signOut(); location.href='index.html'; }
   if(id==='addMeal'){ S.template.push({id:uid(),name:t('New meal'),t:{p:0,c:0,f:0}}); touchProfile(); render(); }
   if(id==='addFood'){ foodDialog(null).then(async f=>{ if(!f) return;
     if(cloud()){ const {data,error}=await sb.from('foods').insert(toRow(f)).select().maybeSingle();
@@ -1537,6 +1542,7 @@ document.addEventListener('click',async e=>{
     e.target.disabled=false;
     if(error){ $('#aMsg').textContent=error.message; return; }
     if(id==='doSignup'&&!data.session){ $('#aMsg').textContent=t('Account created. Click the confirmation link in your email, then sign in.'); return; }
+    $('#veil').classList.remove('show');   // sign-in or immediate-session signup succeeded — close the modal
   }
   if(id==='doForgot'){
     const email=$('#aEmail')?.value.trim();
@@ -1548,7 +1554,6 @@ document.addEventListener('click',async e=>{
       (LANG==='ru'?`Если у ${target} есть аккаунт, ссылка для сброса уже отправлена — проверьте почту.`
                   :`If ${target} has an account, a reset link is on its way — check your inbox.`);
   }
-  if(id==='doLogout'){ await sb.auth.signOut(); location.href='index.html'; }
   if(id==='doJoin'){ const code=$('#joinCode').value.trim(); if(!code) return;
     const ok=await confirmBox(t('Join kitchen'),t('Your own food list will be deleted and replaced with theirs. Continue?'),t('Join'));
     if(!ok) return;
@@ -1557,6 +1562,26 @@ document.addEventListener('click',async e=>{
     toast(t('Joined')); S.foods=[]; await cloudPull(); render(); }
 });
 
+
+function signInDialog(){
+  const body = `<p class="hint" style="margin:0 0 14px">${t('Signing in stores your plans on the server, so your phone and computer see the same data. You can also keep using the app signed out — everything then stays in this browser.')}</p>
+    <div class="field"><label>${t('Email')}</label><input type="email" id="aEmail" autocomplete="email"></div>
+    <div class="field"><label>${t('Password')}</label><input type="password" id="aPass" autocomplete="current-password"></div>
+    <div class="acts" style="margin:0"><button class="btn solid" id="doLogin">${t('Sign in')}</button><button class="btn" id="doSignup">${t('Create account')}</button></div>
+    <p class="hint" style="margin:10px 0 0"><button class="btn ghost" id="doForgot" style="padding:2px 0">${t('Forgot password?')}</button></p>
+    <p class="hint" id="aMsg" style="margin:8px 0 0"></p>`;
+  modal(t('Sign in'), body, [{label:t('Close'),ghost:true,value:'x'}]);
+  $('#aEmail')?.focus();
+}
+function toggleAccountMenu(force){
+  const m=$('#acctMenu'); if(!m) return;
+  const show = force!==undefined ? force : !m.classList.contains('show');
+  m.classList.toggle('show', show);
+}
+document.addEventListener('click', e=>{
+  const m=$('#acctMenu'); if(!m||!m.classList.contains('show')) return;
+  if(!e.target.closest('#acctMenu')&&!e.target.closest('#btnAccount')) toggleAccountMenu(false);
+});
 
 function resetPasswordDialog(){
   const body=`<p class="hint" style="margin:0 0 12px">${t('Choose a new password for your account.')}</p>
