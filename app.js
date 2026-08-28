@@ -5,6 +5,7 @@ const sb = (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase)
   : null;
 
 let SESSION=null, HH=null, HOUSE=null, CH=null;
+let START_FLAG=false;   // true when arriving via ?start=1 (landing page "Get started") — see boot IIFE
 const cloud=()=>!!(sb&&SESSION);
 
 /* ---------------- state ---------------- */
@@ -1609,17 +1610,22 @@ async function onSession(sess){
     if(!wasSignedIn&&S.tab==='account') S.tab='plan';   // land on the plan, not the sign-in screen
     setStatus('wait'); render();                        // paint now, sync in the background
     try{ await cloudPull(); }catch(e){ setStatus('wait'); toast(t('Could not reach the server — continuing with the local copy.')); }
-    if(!wasSignedIn) toast(t('Signed in'));
+    if(!wasSignedIn){
+      toast(t('Signed in'));
+      // suppressed the general first-load auto-trigger for ?start=1 to avoid clashing with the sign-in
+      // modal; now that sign-in is actually done, offer the calorie/macro calculator right away.
+      if(START_FLAG && !S.profile?.done) setTimeout(()=>{ if(!S.profile?.done) runOnboarding(); }, 300);
+    }
   } else { HH=HOUSE=null; if(CH){ sb?.removeChannel(CH); CH=null; } adoptCache(); setStatus('local'); }
   render();
 }
 
 (async()=>{
   adoptCache();
-  try{ if(new URLSearchParams(location.search).get('start')){ S.tab='account';
-    history.replaceState(null,'',location.pathname+location.hash); } }catch(e){}
+  try{ START_FLAG = !!new URLSearchParams(location.search).get('start');
+    if(START_FLAG){ S.tab='plan'; history.replaceState(null,'',location.pathname+location.hash); } }catch(e){}
   setStatus(sb?'wait':'local'); render();
-  if(!readShared()&&!S.profile?.done&&S.tab!=='account') setTimeout(()=>{ if(!S.profile?.done) runOnboarding(); }, 400);
+  if(!readShared()&&!S.profile?.done&&!START_FLAG) setTimeout(()=>{ if(!S.profile?.done) runOnboarding(); }, 400);
   if(sb){
     const {data}=await sb.auth.getSession();
     await onSession(data.session||null);
@@ -1630,7 +1636,8 @@ async function onSession(sess){
     setInterval(flush,20000);
     window.addEventListener('online',flush);
     document.addEventListener('visibilitychange',()=>{ if(!document.hidden) flush(); });
-  }
+    if(START_FLAG && !SESSION) signInDialog();     // arrived via "Get started" and not signed in — ask right here, no tab change
+  } else if(START_FLAG){ S.tab='account'; render(); }  // local mode: no auth possible, Settings is the closest useful screen
   const shared=readShared();
   if(shared){
     try{ history.replaceState(null,'',location.href.split('#')[0]); }catch(e){ location.hash=''; }
