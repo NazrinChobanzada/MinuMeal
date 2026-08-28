@@ -1548,7 +1548,7 @@ document.addEventListener('click',async e=>{
       (LANG==='ru'?`Если у ${target} есть аккаунт, ссылка для сброса уже отправлена — проверьте почту.`
                   :`If ${target} has an account, a reset link is on its way — check your inbox.`);
   }
-  if(id==='doLogout'){ await sb.auth.signOut(); }
+  if(id==='doLogout'){ await sb.auth.signOut(); location.href='index.html'; }
   if(id==='doJoin'){ const code=$('#joinCode').value.trim(); if(!code) return;
     const ok=await confirmBox(t('Join kitchen'),t('Your own food list will be deleted and replaced with theirs. Continue?'),t('Join'));
     if(!ok) return;
