@@ -41,6 +41,9 @@ img{max-width:100%;display:block}
 .btn.solid{background:var(--brand);color:#fff;border-color:var(--brand)}
 .btn.solid:hover{background:var(--brand-dk)}
 .btn.lg{padding:12px 24px;font-size:15px}
+.btn.install{background:#E3ECD9;color:var(--brand-dk);border-color:var(--brand-lt)}
+.btn.install:hover{background:#D7E4C9;border-color:var(--brand-dk)}
+.btn.install::before{content:"⤓";font-size:14px;line-height:1}
 
 .hero{padding-block:80px 56px;text-align:center}
 .eyebrow{display:inline-block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-dk);background:#E3ECD9;padding:5px 12px;border-radius:99px;margin-bottom:18px}
@@ -119,7 +122,7 @@ footer{padding-block:44px 56px;color:var(--muted);font-size:12.5px;text-align:ce
     <div class="langtoggle" id="langToggle">
       <button data-l="en">EN</button><button data-l="ru">RU</button><button data-l="ar">عربي</button>
     </div>
-    <button class="btn" id="installBtn" data-t="installBtn" style="display:none">Install app</button>
+    <button class="btn install" id="installBtn" data-t="installBtn" style="display:none">Install app</button>
     <a class="btn" id="navSignin" href="app.html?start=1" data-t="navSignin">Sign in</a>
   </div>
 </div>
