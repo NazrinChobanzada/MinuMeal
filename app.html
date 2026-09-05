@@ -11,6 +11,7 @@
 <link rel="icon" href="favicon-32.png" sizes="32x32">
 <link rel="icon" href="icon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <div class="top">
@@ -39,3 +40,10 @@
 <script src="config.js"></script>
 <script src="foods.js"></script>
 <script src="app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
+  });
+}
+</script>
