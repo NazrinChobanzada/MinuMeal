@@ -46,7 +46,9 @@ img{max-width:100%;display:block}
 .btn.install::before{content:"⤓";font-size:14px;line-height:1}
 
 .hero{padding-block:80px 56px;text-align:center}
-.eyebrow{display:inline-block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-dk);background:#E3ECD9;padding:5px 12px;border-radius:99px;margin-bottom:18px}
+.eyebrow{display:inline-block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-dk);background:#E3ECD9;padding:5px 12px;border-radius:99px}
+.herotop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;margin-bottom:18px}
+.herotop .btn.install{padding:5px 12px;font-size:12px}
 h1{font-family:var(--disp);font-weight:700;font-size:clamp(30px,5vw,52px);line-height:1.08;margin:0 0 18px;letter-spacing:-.02em}
 .sub{font-size:17px;color:var(--muted);max-width:600px;margin:0 auto 30px;line-height:1.6}
 .herobtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:16px}
@@ -122,14 +124,16 @@ footer{padding-block:44px 56px;color:var(--muted);font-size:12.5px;text-align:ce
     <div class="langtoggle" id="langToggle">
       <button data-l="en">EN</button><button data-l="ru">RU</button><button data-l="ar">عربي</button>
     </div>
-    <button class="btn install" id="installBtn" data-t="installBtn" style="display:none">Install app</button>
     <a class="btn" id="navSignin" href="app.html?start=1" data-t="navSignin">Sign in</a>
   </div>
 </div>
 
 <main>
   <section class="hero wrap">
-    <span class="eyebrow" data-t="eyebrow">Free · no ads · runs in your browser</span>
+    <div class="herotop">
+      <button class="btn install" id="installBtn" data-t="installBtn" style="display:none">Install app</button>
+      <span class="eyebrow" data-t="eyebrow">Free · no ads · install or use in browser</span>
+    </div>
     <h1 data-t="h1"></h1>
     <p class="sub" data-t="sub"></p>
     <div class="herobtns">
@@ -218,7 +222,7 @@ const T = {
     navSignin:'Sign in',
     installBtn:'Install app',
     installIOS:'Tap Share, then "Add to Home Screen"',
-    eyebrow:'Free · no ads · runs in your browser',
+    eyebrow:'Free · no ads · install or use in browser',
     h1:'Hit your macros without the spreadsheet',
     sub:"Set a daily calorie and protein/carb/fat target, then build real meals from foods you actually eat. Food's Up does the math; you just pick what's for dinner.",
     ctaStart:'Get started free', ctaTry:'Try the calculator ↓',
@@ -249,7 +253,7 @@ const T = {
     navSignin:'Войти',
     installBtn:'Установить приложение',
     installIOS:'Нажмите «Поделиться», затем «На экран «Домой»»',
-    eyebrow:'Бесплатно · без рекламы · работает в браузере',
+    eyebrow:'Бесплатно · без рекламы · устанавливается или в браузере',
     h1:'Попадайте в свои БЖУ без таблиц Excel',
     sub:'Задайте дневную цель по калориям и белкам/углеводам/жирам, а затем составляйте реальные приёмы пищи из продуктов, которые вы правда едите. Food\'s Up считает — вы просто выбираете, что на ужин.',
     ctaStart:'Начать бесплатно', ctaTry:'Попробовать калькулятор ↓',
@@ -280,7 +284,7 @@ const T = {
     navSignin:'تسجيل الدخول',
     installBtn:'تثبيت التطبيق',
     installIOS:'اضغط على مشاركة، ثم "إضافة إلى الشاشة الرئيسية"',
-    eyebrow:'مجاني · بلا إعلانات · يعمل في متصفحك',
+    eyebrow:'مجاني · بلا إعلانات · يُثبَّت أو يعمل في المتصفح',
     h1:'حقّق أهداف عناصرك الغذائية بلا جداول بيانات',
     sub:'حدّد هدفك اليومي من السعرات والبروتين والكربوهيدرات والدهون، ثم كوّن وجبات حقيقية من أطعمة تأكلها فعلًا. تطبيق Food\'s Up يقوم بالحسابات، وأنت فقط تختار ماذا تأكل.',
     ctaStart:'ابدأ مجانًا', ctaTry:'جرّب الحاسبة ↓',
