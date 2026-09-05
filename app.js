@@ -524,6 +524,7 @@ function loadCache(){ if(!hasLS) return null; try{ const v=localStorage.getItem(
 
 /* ---------------- ui helpers ---------------- */
 const $=s=>document.querySelector(s);
+const isMobile=()=>window.innerWidth<=760;   // matches the app's own CSS breakpoint
 function toast(t){ const el=$('#toast'); el.textContent=t; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2400); }
 let closeModal=null;
 function modal(title,bodyHTML,buttons){
@@ -794,7 +795,7 @@ function subscribe(){
       const {data}=await sb.from('foods').select('*').eq('household_id',HH);
       if(data){ S.foods=data.map(fromRow).sort((a,b)=>a.n.localeCompare(b.n)); save(); render(); }})
     .on('postgres_changes',{event:'*',schema:'public',table:'combos',filter:'household_id=eq.'+HH},async()=>{
-      await pullCombos(); save(); if(S.tab==='saved') render(); })
+      await pullCombos(); save(); if(S.tab==='saved'||S.tab==='account') render(); })
     .subscribe();
 }
 
@@ -1243,9 +1244,9 @@ function viewTargets(){
     <button class="btn ghost" id="resetAll">${t('Reset everything')}</button></div>`;
 }
 function viewSaved(){
-  if(!S.saved.length) return `<h2>${t('Saved combinations')}</h2><div class="card empty" style="padding:26px">${t('Nothing saved yet. Hit')} <b>${t('Save')}</b> ${t('on a meal you like in the Plan tab.')}</div>`;
+  if(!S.saved.length) return `<div class="card empty" style="padding:26px">${t('Nothing saved yet. Hit')} <b>${t('Save')}</b> ${t('on a meal you like in the Plan tab.')}</div>`;
   const mopts=S.template.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('');
-  return `<h2>${t('Saved combinations')}${cloud()?' <span class="hint">· '+t('shared kitchen')+'</span>':''}</h2><div class="grid">${S.saved.map(s=>{
+  return `<div class="grid">${S.saved.map(s=>{
     const it=s.items.map(i=>{const f=F(i.fid);return f?`${esc(f.n)} <span class="hint">${i.q}${f.b==='100g'?t('g'):' '+esc(f.u)}</span>`:''}).filter(Boolean).join(' · ');
     return `<section class="card meal" data-s="${s.id}">
       <div class="mhead"><span class="mname">${esc(s.name)}</span><span class="mkcal">${r0(s.k||0)} ${t('kcal')}</span></div>
@@ -1277,8 +1278,7 @@ function viewAccount(){
       <div class="acts" style="margin:0"><button class="btn" id="btnExport">${t('Back up')}</button></div>
     </section>`;
 
-  if(!sb) return `<h2>${t('Settings')}</h2>
-    <section class="card acct">
+  if(!sb) return `    <section class="card acct">
       <div class="dhead"><h3>${t('Local mode')}</h3></div>
       <p style="margin:0 0 10px">${t('No server configured, so data stays in this browser only — sync and shared kitchen are off.')}</p>
       <p class="hint" style="margin:0">${t('To turn them on, create a Supabase project, run')} <code>schema.sql</code>, ${t('and fill in the two lines in')} <code>config.js</code>.</p>
@@ -1286,8 +1286,7 @@ function viewAccount(){
     ${profileCard()}
     ${dataCard}`;
 
-  if(!SESSION) return `<h2>${t('Settings')}</h2>
-    <section class="card acct">
+  if(!SESSION) return `    <section class="card acct">
       <div class="dhead"><h3>${t('Sign in')}</h3></div>
       <p class="hint" style="margin:0 0 14px">${t('Signing in stores your plans on the server, so your phone and computer see the same data. You can also keep using the app signed out — everything then stays in this browser.')}</p>
       <div class="acts" style="margin:0"><button class="btn solid" id="openSignIn">${t('Sign in')}</button></div>
@@ -1295,8 +1294,7 @@ function viewAccount(){
     ${profileCard()}
     ${dataCard}`;
 
-  return `<h2>${t('Settings')}</h2>
-    <section class="card acct">
+  return `    <section class="card acct">
       <div class="dhead"><h3>${t('Profile')}</h3></div>
       <div class="field"><label>${t('Signed in as')}</label><div>${esc(SESSION.user.email||'')}</div></div>
       <div class="field"><label>${t('Kitchen name')}</label>
@@ -1317,8 +1315,24 @@ function viewAccount(){
     ${profileCard()}
     ${dataCard}`;
 }
+function viewSavedPage(){   // desktop: Saved as its own standalone tab
+  const savedHint = cloud() ? ' <span class="hint">· '+t('shared kitchen')+'</span>' : '';
+  return `<h2>${t('Saved combinations')}${savedHint}</h2>${viewSaved()}`;
+}
+function viewAccountPage(){   // desktop: Settings as its own standalone page (via the header menu)
+  return `<h2>${t('Settings')}</h2>${viewAccount()}`;
+}
+function viewProfile(){
+  const savedHint = cloud() ? ' <span class="hint">· '+t('shared kitchen')+'</span>' : '';
+  return `<h2>${t('Profile')}</h2>
+    <h3 style="font-family:var(--disp);font-weight:600;font-size:16px;margin:0 0 12px">${t('Saved combinations')}${savedHint}</h3>
+    ${viewSaved()}
+    <h3 style="font-family:var(--disp);font-weight:600;font-size:16px;margin:28px 0 12px">${t('Settings')}</h3>
+    ${viewAccount()}`;
+}
 function render(){
   document.querySelectorAll('#tabs button').forEach(b=>{
+    if(b.dataset.tab==='saved') b.dataset.t = isMobile() ? 'Profile' : 'Saved';  // same tab, device-dependent label
     b.setAttribute('aria-selected',String(b.dataset.tab===S.tab));
     if(b.dataset.t) b.textContent=t(b.dataset.t);
   });
@@ -1327,7 +1341,7 @@ function render(){
   paintLangBtn();
   paintAccountBtn();
   $('#view').innerHTML = S.tab==='plan'?viewPlan():S.tab==='foods'?viewFoods():S.tab==='targets'?viewTargets():
-                         S.tab==='saved'?viewSaved():viewAccount();
+                         S.tab==='saved'?(isMobile()?viewProfile():viewSavedPage()):viewAccountPage();
   ledger();
   const fq=$('#fq'); if(fq&&focusSearch){ fq.focus(); fq.setSelectionRange(fq.value.length,fq.value.length); }
   focusSearch=false;
@@ -1512,7 +1526,7 @@ document.addEventListener('click',async e=>{
   if(id==='scaleMeals'){ scaleMealsToDaily(); touchProfile(); render(); toast(t('Meal targets scaled to the daily total')); }
   if(id==='doProfile'||id==='bannerCalc') runOnboarding();
   if(id==='openSignIn') signInDialog();
-  if(id==='menuSettings'){ toggleAccountMenu(false); S.tab='account'; save(); render(); }
+  if(id==='menuSettings'){ toggleAccountMenu(false); S.tab = isMobile() ? 'saved' : 'account'; save(); render(); }
   if(id==='menuSignout'){ toggleAccountMenu(false); await sb.auth.signOut(); location.href='index.html'; }
   if(id==='addMeal'){ S.template.push({id:uid(),name:t('New meal'),t:{p:0,c:0,f:0}}); touchProfile(); render(); }
   if(id==='addFood'){ foodDialog(null).then(async f=>{ if(!f) return;
@@ -1640,6 +1654,8 @@ async function onSession(sess){
     });
     setInterval(flush,20000);
     window.addEventListener('online',flush);
+    let resizeTimer=null;
+    window.addEventListener('resize',()=>{ clearTimeout(resizeTimer); resizeTimer=setTimeout(render,150); });
     document.addEventListener('visibilitychange',()=>{ if(!document.hidden) flush(); });
     if(START_FLAG && !SESSION) signInDialog();     // arrived via "Get started" and not signed in — ask right here, no tab change
   } else if(START_FLAG){ S.tab='account'; render(); }  // local mode: no auth possible, Settings is the closest useful screen
