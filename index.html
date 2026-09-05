@@ -119,6 +119,7 @@ footer{padding-block:44px 56px;color:var(--muted);font-size:12.5px;text-align:ce
     <div class="langtoggle" id="langToggle">
       <button data-l="en">EN</button><button data-l="ru">RU</button><button data-l="ar">عربي</button>
     </div>
+    <button class="btn" id="installBtn" data-t="installBtn" style="display:none">Install app</button>
     <a class="btn" id="navSignin" href="app.html?start=1" data-t="navSignin">Sign in</a>
   </div>
 </div>
@@ -212,6 +213,8 @@ footer{padding-block:44px 56px;color:var(--muted);font-size:12.5px;text-align:ce
 const T = {
   en: {
     navSignin:'Sign in',
+    installBtn:'Install app',
+    installIOS:'Tap Share, then "Add to Home Screen"',
     eyebrow:'Free · no ads · runs in your browser',
     h1:'Hit your macros without the spreadsheet',
     sub:"Set a daily calorie and protein/carb/fat target, then build real meals from foods you actually eat. Food's Up does the math; you just pick what's for dinner.",
@@ -241,6 +244,8 @@ const T = {
   },
   ru: {
     navSignin:'Войти',
+    installBtn:'Установить приложение',
+    installIOS:'Нажмите «Поделиться», затем «На экран «Домой»»',
     eyebrow:'Бесплатно · без рекламы · работает в браузере',
     h1:'Попадайте в свои БЖУ без таблиц Excel',
     sub:'Задайте дневную цель по калориям и белкам/углеводам/жирам, а затем составляйте реальные приёмы пищи из продуктов, которые вы правда едите. Food\'s Up считает — вы просто выбираете, что на ужин.',
@@ -270,6 +275,8 @@ const T = {
   },
   ar: {
     navSignin:'تسجيل الدخول',
+    installBtn:'تثبيت التطبيق',
+    installIOS:'اضغط على مشاركة، ثم "إضافة إلى الشاشة الرئيسية"',
     eyebrow:'مجاني · بلا إعلانات · يعمل في متصفحك',
     h1:'حقّق أهداف عناصرك الغذائية بلا جداول بيانات',
     sub:'حدّد هدفك اليومي من السعرات والبروتين والكربوهيدرات والدهون، ثم كوّن وجبات حقيقية من أطعمة تأكلها فعلًا. تطبيق Food\'s Up يقوم بالحسابات، وأنت فقط تختار ماذا تأكل.',
@@ -347,6 +354,36 @@ function runDemo(){
   $('#dC').textContent = fmt(Math.round(carbs))+' g';
   $('#dF').textContent = fmt(Math.round(fat))+' g';
 }
+
+/* ---- install button (Chromium: real prompt; iOS: instructions, no JS-triggerable install exists) ---- */
+(function(){
+  const btn = document.getElementById('installBtn');
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (isStandalone) return; // already installed — nothing to offer
+
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  let deferredPrompt = null;
+
+  if (isIOS) {
+    btn.dataset.t = 'installIOS';   // keeps translating correctly via the normal applyLang() loop
+    btn.style.display = '';
+    btn.addEventListener('click', () => alert(btn.textContent));
+  } else {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      btn.style.display = '';
+    });
+    btn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      btn.style.display = 'none';
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+    });
+    window.addEventListener('appinstalled', () => { btn.style.display = 'none'; });
+  }
+})();
 
 applyLang();
 
