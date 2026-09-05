@@ -368,9 +368,10 @@ function runDemo(){
   let deferredPrompt = null;
 
   if (isIOS) {
-    btn.dataset.t = 'installIOS';   // keeps translating correctly via the normal applyLang() loop
+    // keep the button label short ("Install app") on every screen size — the long
+    // instruction only shows in the tap-triggered alert, never crammed into the button itself
     btn.style.display = '';
-    btn.addEventListener('click', () => alert(btn.textContent));
+    btn.addEventListener('click', () => alert((T[LANG]||T.en).installIOS));
   } else {
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
