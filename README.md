@@ -122,7 +122,8 @@ The file is split into commented sections, in order:
    ranks whole combinations.
 5. **sync** — Supabase reads and writes, the offline queue, realtime updates.
 6. **views** — `viewPlan`, `viewFoods`, `viewTargets`, `viewSaved`,
-   `viewAccount`. Each returns an HTML string.
+   `viewAccount`. Each returns an HTML string. Meal rows are grouped by the role
+   they fill, matching how the Build dialog asks for them.
 7. **events** — one delegated listener, dispatching on the `data-act` attribute.
 
 To add a screen: drop a `<button data-tab="...">` into the tab list in
@@ -133,12 +134,33 @@ To add a screen: drop a `<button data-tab="...">` into the tab list in
 
 `candidates()` assembles random food sets — if the target needs protein it
 takes one food with the protein role, likewise for carbs and fat — then calls
-`optimize()` on each set and ranks the results by distance from the target.
+`optimize()` on each set, ranks the results by distance from the target, and
+runs `polish()` over the shortlist.
 
 `optimize()` runs coordinate descent: it repeatedly updates one food's quantity
 using the closed-form solution that minimises error with the others held fixed,
 clamps to that food's min–max range, and snaps to its portion step. 45 passes.
 
-Error weights are `W = {p:6, c:4, f:9}`. Fat is 9 because of its calorie
-density; protein is 6 rather than 4 to hold the protein target more tightly.
-That is the line to edit if you want more or less tolerance on protein.
+`polish()` then walks each portion one step size at a time and keeps any nudge
+that lowers the score. Coordinate descent minimises a *symmetric* error and
+snaps on the way, so on its own it can settle above the target; the polish pass
+is what pulls a suggestion back down to 75 g instead of leaving it 27 g over.
+It is too slow to run on all 420 tries, so it only touches the top 8.
+
+Error weights are `W = {p:6, c:4, f:9}`, and `OVER = 3` multiplies the error of
+anything *above* target — going over costs three times what falling short does.
+Fat is 9 because of its calorie density; protein is 6 rather than 4 to hold the
+protein target more tightly. Those are the lines to edit for more or less
+tolerance.
+
+### Build settings
+
+The Build dialog's target and its chosen sources are kept per meal in
+`S.build[mealId]` and ride along in the profile blob, so they survive a reload
+and reach your other devices. Sources are a *pool*, not a fixed list: pick
+chicken and beef together and each option uses one of the two, so cycling
+**Another option** walks between them. Pick nothing for a role and the
+generator chooses freely from every food carrying that role.
+
+`Another option` cycles the eight candidates from the last solve and solves a
+fresh batch once they run out.

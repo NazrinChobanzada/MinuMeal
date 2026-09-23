@@ -32,6 +32,7 @@ function defaultState(){
       m5:[{fid:'whey-on',q:1}]
     }},
     foods:SEED_FOODS.map(f=>({...f})),
+    build:{},                                               // per-meal Build settings, remembered between sessions
     saved:[], q:[]
   };
 }
@@ -121,6 +122,21 @@ const RU = {
   'Same as yesterday':'Как вчера','Share':'Поделиться','Copy as text':'Копировать как текст',
   'Build…':'Собрать…','Auto-fill':'Автозаполнение','Another option':'Другой вариант',
   'Shuffle':'Перемешать','Save':'Сохранить','Clear':'Очистить',
+  'More':'Ещё','Save this combination':'Сохранить эту комбинацию',
+  'Clear all':'Очистить всё',
+  'Clear all — same as removing every row by hand':'Очистить всё — то же самое, что удалить каждую строку вручную',
+  'Meal cleared':'Приём очищен','Nothing to clear.':'Нечего очищать.',
+  'Option':'Вариант','Fresh set of options':'Новый набор вариантов',
+  'Built to':'Собрано на','Built for':'Собрано под',
+  'any source':'любые источники','Extra':'Дополнительно',
+  'Forget these build settings':'Забыть эти настройки сборки',
+  'Build settings cleared':'Настройки сборки очищены',
+  'fiber short':'клет',
+  'No food carries this role yet.':'Пока нет продуктов с этой ролью.',
+  'What is this a source of?':'Источником чего он является?',
+  'The generator uses this food for that slot.':'Генератор использует продукт в этой роли.',
+  'Worked out from the macros — tap to override.':'Определено по макросам — нажмите, чтобы изменить.',
+  'Pick as many sources as you like — each option uses one of the ones you picked. Pick none and the generator chooses freely. Portions are solved to land on the target without going over; they snap to each food\u2019s step size, so expect a percent or two of drift.':'Выбирайте сколько угодно источников — каждый вариант возьмёт один из выбранных. Не выбирайте ничего, и генератор решит сам. Порции подбираются так, чтобы попасть в цель и не превысить её; они округляются до шага продукта, так что расхождение в процент-другой нормально.',
   'Empty — add something below or fill it automatically.':'Пусто — добавьте продукт ниже или заполните автоматически.',
   '+ add food…':'+ добавить продукт…','decrease':'уменьшить','increase':'увеличить',
   'Locked':'Закреплено','Lock':'Закрепить','Remove':'Удалить',
@@ -275,6 +291,21 @@ const AR = {
   "Same as yesterday":"مثل الأمس",
   "Share":"مشاركة",
   "Copy as text":"نسخ كنص",
+  "More":"المزيد","Save this combination":"احفظ هذه التركيبة",
+  "Clear all":"مسح الكل",
+  "Clear all — same as removing every row by hand":"مسح الكل — مثل حذف كل صف يدويًا",
+  "Meal cleared":"تم مسح الوجبة","Nothing to clear.":"لا شيء لمسحه.",
+  "Option":"خيار","Fresh set of options":"مجموعة خيارات جديدة",
+  "Built to":"مبني على","Built for":"مبني من أجل",
+  "any source":"أي مصدر","Extra":"إضافي",
+  "Forget these build settings":"نسيان إعدادات البناء هذه",
+  "Build settings cleared":"تم مسح إعدادات البناء",
+  "fiber short":"ألياف",
+  "No food carries this role yet.":"لا يوجد طعام بهذا الدور بعد.",
+  "What is this a source of?":"مصدر لماذا؟",
+  "The generator uses this food for that slot.":"المولّد يستخدم هذا الطعام لهذا الدور.",
+  "Worked out from the macros — tap to override.":"محسوب من الماكروز — اضغط للتغيير.",
+  "Pick as many sources as you like — each option uses one of the ones you picked. Pick none and the generator chooses freely. Portions are solved to land on the target without going over; they snap to each food\u2019s step size, so expect a percent or two of drift.":"اختر ما شئت من المصادر — كل خيار يستخدم واحدًا مما اخترته. لا تختر شيئًا وسيختار المولّد بحرية. تُحسب الكميات لتصل إلى الهدف دون تجاوزه، وتُقرَّب إلى خطوة كل طعام، لذا توقّع فارقًا بنسبة واحد أو اثنين بالمئة.",
   "Build…":"إنشاء…",
   "Auto-fill":"تعبئة تلقائية",
   "Another option":"خيار آخر",
@@ -510,6 +541,14 @@ const AR = {
   "Calories are the budget: raise one macro and the other two give way to keep the split at 100%. Below, set each meal in grams, as a share of the day, or straight in calories — typing calories rescales that meal and keeps its own macro balance.":"السعرات الحرارية هي الميزانية: عند زيادة أحد العناصر الغذائية، يتراجع العنصران الآخران للحفاظ على مجموع 100%. أدناه، حدّد كل وجبة بالجرام، أو كنسبة من اليوم، أو مباشرة بالسعرات — كتابة السعرات تعيد ضبط تلك الوجبة مع الحفاظ على توازن عناصرها الغذائية.",
 };
 function t(key){ const d=LANG==='ru'?RU:LANG==='ar'?AR:null; return d?(d[key]||key):key; }
+/* one-letter macro tags. They are read as initials, so they have to follow the language:
+   p/c/f in English, б/у/ж in Russian — "P K Y" was Turkish left over from the first draft. */
+const MACRO_SHORT={
+  en:{p:'p',c:'c',f:'f',P:'P',C:'C',F:'F'},
+  ru:{p:'б',c:'у',f:'ж',P:'Б',C:'У',F:'Ж'},
+  ar:{p:'ب',c:'ك',f:'د',P:'ب',C:'ك',F:'د'}
+};
+const MS=()=>MACRO_SHORT[LANG]||MACRO_SHORT.en;
 
 
 
@@ -530,6 +569,7 @@ let closeModal=null;
 function modal(title,bodyHTML,buttons){
   return new Promise(res=>{
     $('#mTitle').textContent=title; $('#mBody').innerHTML=bodyHTML;
+    $('#mBody').onclick=$('#mBody').onchange=$('#mBody').oninput=null;   // drop the previous dialog's handlers
     $('#mBtns').innerHTML=buttons.map((b,i)=>`<button class="btn ${b.solid?'solid':b.ghost?'ghost':''}" data-i="${i}">${esc(b.label)}</button>`).join('');
     $('#veil').classList.add('show');
     const done=v=>{ $('#veil').classList.remove('show'); closeModal=null; res(v); };
@@ -539,6 +579,10 @@ function modal(title,bodyHTML,buttons){
     const first=$('#mBody').querySelector('input,textarea'); if(first){ first.focus(); first.select&&first.select(); }
   });
 }
+// There is one dialog element in the page, so two dialogs cannot coexist: whoever paints second
+// wipes the first one's buttons and its promise never settles. Anything that opens a dialog on a
+// timer has to check this first.
+const modalOpen=()=>$('#veil').classList.contains('show');
 const ask=(t,d='')=>modal(t,`<input type="text" id="mInput" value="${esc(d)}">`,
   [{label:'Cancel',ghost:true,value:null},{label:'OK',solid:true,read:'#mInput'}]);
 const confirmBox=(t,m,ok='Yes')=>modal(t,`<p class="hint" style="margin:0">${esc(m)}</p>`,
@@ -618,8 +662,12 @@ function defaultProfile(){
 
 /* ---------------- generator ---------------- */
 const W={p:6,c:4,f:9};
-const score=(tot,t)=>W.p*(tot.p-t.p)**2+W.c*(tot.c-t.c)**2+W.f*(tot.f-t.f)**2;
+const OVER=3;   // going over a target costs three times what falling short does — a suggestion
+                // that lands 27 g above the fat target is worse than one that lands 9 g below it
+const dev=(a,t,w)=>{ const d=a-t; return w*d*d*(d>0?OVER:1); };
+const score=(tot,t)=>dev(tot.p,t.p,W.p)+dev(tot.c,t.c,W.c)+dev(tot.f,t.f,W.f);
 const snap=(v,f)=>{ const s=f.st||1; return Math.min(f.mx,Math.max(f.mn,Math.round(v/s)*s)); };
+const sumOf=(U,q)=>{ const t={p:0,c:0,f:0}; U.forEach((u,i)=>{t.p+=u.p*q[i];t.c+=u.c*q[i];t.f+=u.f*q[i];}); return t; };
 function optimize(foods,tgt){
   let q=foods.map(f=>snap((f.mn+f.mx)/4,f));
   const U=foods.map(perUnit);
@@ -637,54 +685,99 @@ function optimize(foods,tgt){
   }
   return {q,tot:cur()};
 }
+/* Coordinate descent above solves the smooth problem, but it minimises a symmetric error and
+   snaps to step sizes on the way, so it can settle above the target. This walks each portion
+   one step at a time and keeps whatever lowers the asymmetric score — it is what stops a
+   suggestion from sitting 27 g over fat when 75 g instead of 200 g of something would fit. */
+function polish(foods,q0,tgt){
+  const U=foods.map(perUnit), q=[...q0];
+  let best=score(sumOf(U,q),tgt);
+  for(let pass=0;pass<60;pass++){
+    let moved=false;
+    for(let i=0;i<foods.length;i++){
+      const st=foods[i].st||1;
+      for(const d of [-st,st]){
+        const nv=snap(q[i]+d,foods[i]); if(nv===q[i]) continue;
+        const old=q[i]; q[i]=nv;
+        const s=score(sumOf(U,q),tgt);
+        if(s<best-1e-9){ best=s; moved=true; } else q[i]=old;
+      }
+    }
+    if(!moved) break;
+  }
+  return {q,tot:sumOf(U,q),s:best};
+}
 const pick=(arr,n)=>{ const c=[...arr],o=[]; while(o.length<n&&c.length) o.push(c.splice(Math.floor(Math.random()*c.length),1)[0]); return o; };
-function candidates(meal,{shuffle=false,must=[],target=null}={}){
+/* `pools` is {protein:[food,…], carb:[…], fat:[…], veg:[…]} — the sources chosen in the Build
+   dialog. A role with entries draws only from them, so picking chicken AND beef means every
+   option uses one of the two, and cycling through options walks between them. */
+function candidates(meal,{pools=null,target=null,count=8}={}){
   const cur=items(meal.id), locked=cur.filter(i=>i.lock&&F(i.fid));
   const base={p:0,c:0,f:0}; locked.forEach(i=>{const x=itemMacros(i);base.p+=x.p;base.c+=x.c;base.f+=x.f;});
   const goal=target||meal.t;
   const tgt={p:Math.max(0,goal.p-base.p),c:Math.max(0,goal.c-base.c),f:Math.max(0,goal.f-base.f)};
   if(tgt.p+tgt.c+tgt.f<=0) return [];
-  const pool=S.foods.filter(f=>f.use&&!locked.some(l=>l.fid===f.id)&&!must.some(x=>x.id===f.id));
-  if(!pool.length&&!must.length) return [];
-  const byRole=r=>pool.filter(f=>f.role===r);
-  const out=[],seen=new Set(),tries=shuffle?60:420;
-  for(let t=0;t<tries;t++){
-    const k=Math.max(must.length, 2+Math.floor(Math.random()*3));
-    let set=[...must];
-    const has=r=>set.some(f=>f.role===r);
-    if(tgt.p>8&&!has('protein')) set.push(...pick(byRole('protein'),1));
-    if(tgt.c>8&&!has('carb')) set.push(...pick(byRole('carb'),1));
-    if(tgt.f>8&&!has('fat')) set.push(...pick(byRole('fat'),1));
-    if(!set.length) set.push(...pick(pool,1));
-    while(set.length<k){ const e=pick(pool,1)[0]; if(!e) break; if(!set.includes(e)) set.push(e); }
+  const free=S.foods.filter(f=>f.use&&!locked.some(l=>l.fid===f.id));
+  if(!free.length) return [];
+  const chosen=r=>((pools&&pools[r])||[]).filter(f=>f&&free.some(x=>x.id===f.id));
+  const rolePool=r=>{ const c=chosen(r); return c.length?c:free.filter(f=>f.role===r); };
+  const picked=['protein','carb','fat','veg'].some(r=>chosen(r).length);
+  const out=[],seen=new Set();
+  for(let t=0;t<420;t++){
+    let set=[];
+    if(tgt.p>8||chosen('protein').length) set.push(...pick(rolePool('protein'),1));
+    if(tgt.c>8||chosen('carb').length)    set.push(...pick(rolePool('carb'),1));
+    if(tgt.f>8||chosen('fat').length)     set.push(...pick(rolePool('fat'),1));
+    if(chosen('veg').length)              set.push(...pick(rolePool('veg'),1));
+    set=set.filter(Boolean);
+    if(!set.length) set.push(...pick(free,1));
+    if(!picked){                                   // free-form: sometimes round the meal out
+      const k=Math.max(set.length,2+Math.floor(Math.random()*3));
+      for(let guard=0;set.length<k&&guard<12;guard++){
+        const e=pick(free,1)[0]; if(!e) break;
+        if(!set.includes(e)) set.push(e);
+      }
+    }
     set=set.filter(Boolean); if(!set.length) continue;
     const sig=set.map(f=>f.id).sort().join('|'); if(seen.has(sig)) continue; seen.add(sig);
-    let q,tot;
-    if(shuffle){
-      q=set.map(f=>{const s=f.st||1,steps=Math.max(1,Math.round((f.mx-f.mn)/s));return snap(f.mn+Math.round(Math.random()*steps*.6)*s,f);});
-      const u=set.map(perUnit); tot={p:0,c:0,f:0}; u.forEach((x,i)=>{tot.p+=x.p*q[i];tot.c+=x.c*q[i];tot.f+=x.f*q[i];});
-    } else { const o=optimize(set,tgt); q=o.q; tot=o.tot; }
+    const o=optimize(set,tgt);
     let dup=0; const rc={}; set.forEach(f=>{rc[f.role]=(rc[f.role]||0)+1;});
     Object.values(rc).forEach(v=>{ if(v>1) dup+=v-1; });
-    out.push({set,q,s:score(tot,tgt)+set.length*3+dup*10});
+    out.push({set,q:o.q,dup,s:score(o.tot,tgt)+set.length*3+dup*10});
   }
   out.sort((a,b)=>a.s-b.s);
-  return (shuffle?out.sort(()=>Math.random()-.5):out).slice(0,8);
+  // polish only the shortlist — the discrete search is far too slow to run on all 420 tries
+  return out.slice(0,count).map(c=>{ const p=polish(c.set,c.q,tgt);
+      return {set:c.set,q:p.q,tot:p.tot,s:p.s+c.set.length*3+c.dup*10}; })
+    .sort((a,b)=>a.s-b.s);
 }
 function applyCandidate(meal,cand){
   const kept=items(meal.id).filter(i=>i.lock);
   S.days[S.date][meal.id]=kept.concat(cand.set.map((f,i)=>({fid:f.id,q:cand.q[i],lock:false})));
 }
-function generate(mid,mode){
+const poolsFor=mid=>{                              // the sources this meal was last built from
+  const src=S.build?.[mid]?.src; if(!src) return null;
+  const out={}; let any=false;
+  ['protein','carb','fat','veg'].forEach(r=>{
+    out[r]=(src[r]||[]).map(F).filter(Boolean); if(out[r].length) any=true;
+  });
+  return any?out:null;
+};
+function generate(mid){
   const m=S.template.find(x=>x.id===mid);
-  const list=candidates(m,{shuffle:mode==='shuffle'});
+  const list=candidates(m,{pools:poolsFor(mid)});
   if(!list.length){ toast(m.t.p+m.t.c+m.t.f<=0?t('This meal has no target yet — set one on the Targets tab.'):t('No suitable foods found.')); return; }
   ALT[mid]={list,i:0}; applyCandidate(m,list[0]); touchDay(); render();
 }
 function nextAlt(mid){
-  const a=ALT[mid]; if(!a||a.list.length<2){ generate(mid,'auto'); return; }
-  a.i=(a.i+1)%a.list.length; applyCandidate(S.template.find(x=>x.id===mid),a.list[a.i]); touchDay(); render();
-  toast(LANG==='ru'?`Вариант ${a.i+1} из ${a.list.length}`:`Option ${a.i+1} of ${a.list.length}`);
+  const a=ALT[mid], m=S.template.find(x=>x.id===mid);
+  if(!a||a.list.length<2){ generate(mid); return; }
+  if(a.i+1>=a.list.length){                        // list exhausted — solve a fresh batch rather than loop
+    const list=candidates(m,{pools:poolsFor(mid)});
+    if(list.length){ ALT[mid]={list,i:0}; applyCandidate(m,list[0]); touchDay(); render(); toast(t('Fresh set of options')); return; }
+  }
+  a.i=(a.i+1)%a.list.length; applyCandidate(m,a.list[a.i]); touchDay(); render();
+  toast(t('Option')+` ${a.i+1}/${a.list.length}`);
 }
 
 /* ---------------- sync ---------------- */
@@ -717,7 +810,7 @@ async function flush(){
 async function runOp(op){
   const now=new Date().toISOString();
   if(op.op==='profile'){
-    const payload={v:3,template:S.template,daily:S.daily,mealUnit:S.mealUnit,profile:S.profile};
+    const payload={v:3,template:S.template,daily:S.daily,mealUnit:S.mealUnit,profile:S.profile,build:S.build||{}};
     const {error}=await sb.from('profiles').update({meals:payload,updated_at:now}).eq('user_id',SESSION.user.id);
     if(error) throw error; return;
   }
@@ -751,8 +844,9 @@ async function cloudPull(){
     if(pm.daily) S.daily=pm.daily;
     if(pm.mealUnit) S.mealUnit=pm.mealUnit;
     if(pm.v===3&&pm.profile) S.profile=pm.profile;
+    if(pm.build) S.build=pm.build;
   } else await sb.from('profiles').update(
-      {meals:{v:3,template:S.template,daily:S.daily,mealUnit:S.mealUnit,profile:S.profile},updated_at:new Date().toISOString()}).eq('user_id',u);
+      {meals:{v:3,template:S.template,daily:S.daily,mealUnit:S.mealUnit,profile:S.profile,build:S.build||{}},updated_at:new Date().toISOString()}).eq('user_id',u);
 
   const {data:rows}=await sb.from('foods').select('*').eq('household_id',HH);
   if(rows&&rows.length) S.foods=rows.map(fromRow).sort((a,b)=>a.n.localeCompare(b.n));
@@ -802,6 +896,8 @@ function subscribe(){
 
 /* ---------------- food dialog ---------------- */
 const ROLE_LABEL={protein:'protein',carb:'carb',fat:'fat',veg:'veg'};
+const ROLE_ORDER=['protein','carb','fat','veg'];
+const ROLE_HEAD={protein:'Protein source',carb:'Carb source',fat:'Fat source',veg:'Extra'};
 function guessRole(f){
   const tot=(f.p*4)+(f.c*4)+(f.f*9);
   if(tot<=0) return 'protein';
@@ -817,6 +913,8 @@ function defaultRange(f){
 function foodDialog(existing){
   const f = existing ? {...existing} : {n:'',b:'100g',u:'g',p:0,c:0,f:0,fib:0,k:0,role:'',use:true};
   let autoKcal = !existing || kcalCheck(f).level==='ok';
+  let role = existing?.role || '';
+  let roleTouched = !!role;          // until the user picks one, the role follows the macros
   const num=(k,lab,step)=>`<label class="dfield"><span class="dlab">${t(lab)}</span>
     <input class="num" type="number" min="0" step="${step}" data-f="${k}" value="${f[k]||0}"></label>`;
   const body=`
@@ -837,16 +935,26 @@ function foodDialog(existing){
         <label class="hint" style="display:flex;gap:5px;align-items:center;white-space:nowrap">
           <input type="checkbox" data-auto${autoKcal?' checked':''} style="width:auto"> ${t('calculate')}</label>
       </div></div>
+    <div class="field" style="margin-bottom:6px"><label>${t('What is this a source of?')}</label>
+      <div class="seg" data-role>
+        ${ROLE_ORDER.map(r=>`<button data-v="${r}"${f.role===r?' class="on"':''}>${t(ROLE_LABEL[r])}</button>`).join('')}
+      </div>
+      <p class="hint" id="rMsgRole" style="margin:6px 0 0"></p></div>
     <p class="hint" id="kMsg" style="margin:0"></p>`;
   const p=modal(existing?t('Edit food'):t('New food'),body,
     [{label:t('Cancel'),ghost:true,value:null},{label:t('Save'),solid:true,value:'save'}]);
   const host=$('#mBody'), saveBtn=()=>$('#mBtns').querySelector('[data-i="1"]');
   const get=k=>host.querySelector(`[data-f="${k}"]`);
-  const read=()=>({n:get('n').value.trim(), b:host.querySelector('.seg button.on').dataset.v,
+  const read=()=>({n:get('n').value.trim(), b:host.querySelector('[data-basis] button.on').dataset.v,
     u:get('u').value.trim()||'g', p:+get('p').value||0, c:+get('c').value||0,
     f:+get('f').value||0, fib:+get('fib').value||0, k:+get('k').value||0});
   function refresh(){
     const v=read(); if(v.b==='100g') v.u='g';
+    if(!roleTouched && v.p+v.c+v.f>0) role=guessRole(v);
+    host.querySelectorAll('[data-role] button').forEach(x=>x.classList.toggle('on',x.dataset.v===role));
+    const rm=$('#rMsgRole');
+    if(rm) rm.textContent = roleTouched ? t('The generator uses this food for that slot.')
+                                        : t('Worked out from the macros — tap to override.');
     if(autoKcal){ get('k').value=Math.round(calcKcal(v)); v.k=calcKcal(v); get('k').disabled=true; }
     else get('k').disabled=false;
     const chk=kcalCheck(v), msg=$('#kMsg'), btn=saveBtn();
@@ -866,20 +974,22 @@ function foodDialog(existing){
     msg.className=cls; msg.textContent=text;
     if(btn) btn.disabled = !v.n || v.p+v.c+v.f<=0 || chk.level==='bad';
   }
-  host.addEventListener('input',refresh);
-  host.addEventListener('change',e=>{ if(e.target.hasAttribute('data-auto')){ autoKcal=e.target.checked; refresh(); }});
-  host.addEventListener('click',e=>{
+  host.oninput=refresh;
+  host.onchange=e=>{ if(e.target.hasAttribute('data-auto')){ autoKcal=e.target.checked; refresh(); } else refresh(); };
+  host.onclick=e=>{
     const b=e.target.closest('.seg button'); if(!b) return;
-    host.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b));
+    const seg=b.closest('.seg');
+    seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+    if(seg.hasAttribute('data-role')){ role=b.dataset.v; roleTouched=true; refresh(); return; }
     get('u').style.display = b.dataset.v==='piece'?'block':'none';
     if(b.dataset.v==='piece'&&get('u').value==='g') get('u').value='piece';
     refresh();
-  });
+  };
   refresh();
   return p.then(v=>{
     if(v!=='save') return null;
     const out=read(); if(out.b==='100g') out.u='g';
-    out.role = existing?.role || guessRole(out);
+    out.role = role || guessRole(out);
     Object.assign(out, existing?{mn:existing.mn,mx:existing.mx,st:existing.st}:defaultRange(out));
     out.use = existing?existing.use:true;
     out.id = existing?existing.id:uid();
@@ -890,12 +1000,17 @@ function foodDialog(existing){
 /* ---------------- build a meal from chosen sources ---------------- */
 function buildDialog(mid){
   const m=S.template.find(x=>x.id===mid);
-  let kcal=Math.round(targetKcal(m.t))||600;
-  let split=splitOf(m.t);
+  const prev=S.build?.[mid];                     // whatever this meal was built from last time
+  let kcal=Math.round(prev?.kcal||targetKcal(m.t))||600;
+  let split=prev?.split?{...prev.split}:splitOf(m.t);
   let unit='g';                                  // 'g' = type grams, 'pct' = type percentages
-  const opts=role=>['<option value="">'+t('Any')+' '+t(ROLE_LABEL[role])+' '+t('source')+'</option>'].concat(
-    S.foods.filter(f=>f.role===role&&f.use).sort((a,b)=>a.n.localeCompare(b.n))
-      .map(f=>`<option value="${f.id}">${esc(f.n)}</option>`)).join('');
+  const src={protein:[],carb:[],fat:[],veg:[]};
+  Object.keys(src).forEach(r=>{ src[r]=(prev?.src?.[r]||[]).filter(id=>F(id)); });
+  // sources are chips, not a dropdown: pick chicken and beef together and each option uses one of them
+  const chips=role=>{ const list=S.foods.filter(f=>f.role===role&&f.use).sort((a,b)=>a.n.localeCompare(b.n));
+    if(!list.length) return `<p class="hint" style="margin:0">${t('No food carries this role yet.')}</p>`;
+    return `<div class="chips" data-src="${role}">`+list.map(f=>
+      `<button type="button" class="chip pick${src[role].includes(f.id)?' on':''}" data-id="${f.id}">${esc(f.n)}</button>`).join('')+`</div>`; };
   const body=`
     <div class="field"><label>${t('Target for this meal')}</label>
       <div class="seg" data-unit>
@@ -911,11 +1026,11 @@ function buildDialog(mid){
         <input class="num" type="number" min="0" step="10" data-b="kcal" value="${kcal}">
         <span class="dsub" data-g="kcal"></span></label>
     </div>
-    <div class="field" style="margin-top:12px"><label>${t('Protein source')}</label><select data-src="protein">${opts('protein')}</select></div>
-    <div class="field"><label>${t('Carb source')}</label><select data-src="carb">${opts('carb')}</select></div>
-    <div class="field"><label>${t('Fat source')}</label><select data-src="fat">${opts('fat')}</select></div>
-    <div class="field"><label>${t('Extra (optional)')}</label><select data-src="veg">${opts('veg')}</select></div>
-    <p class="hint" style="margin:0">${t('Leave a source on “Any” and the generator picks one. Portions are solved to land on the target; they snap to each food’s step size, so expect a percent or two of drift.')}</p>`;
+    <div class="field" style="margin-top:12px"><label>${t('Protein source')}</label>${chips('protein')}</div>
+    <div class="field"><label>${t('Carb source')}</label>${chips('carb')}</div>
+    <div class="field"><label>${t('Fat source')}</label>${chips('fat')}</div>
+    <div class="field"><label>${t('Extra (optional)')}</label>${chips('veg')}</div>
+    <p class="hint" style="margin:0">${t('Pick as many sources as you like — each option uses one of the ones you picked. Pick none and the generator chooses freely. Portions are solved to land on the target without going over; they snap to each food’s step size, so expect a percent or two of drift.')}</p>`;
   const p=modal(t('Build')+' '+m.name,body,
     [{label:t('Cancel'),ghost:true,value:null},{label:t('Build'),solid:true,value:'go'}]);
   const host=$('#mBody');
@@ -931,7 +1046,7 @@ function buildDialog(mid){
     ke.disabled = unit==='g';
     sub('kcal').textContent = unit==='g'?t('from the macros'):t('kcal for this meal');
   }
-  host.addEventListener('change',e=>{
+  host.onchange=e=>{
     const k=e.target.dataset.b; if(!k) return;
     if(k==='kcal'){ kcal=Math.max(0,+e.target.value||0); }
     else if(unit==='pct'){ split=balance(split,k,+e.target.value||0); }
@@ -941,18 +1056,21 @@ function buildDialog(mid){
       if(k2>0){ kcal=Math.round(k2); split={p:r1(g.p*4/k2*100),c:r1(g.c*4/k2*100),f:r1(g.f*9/k2*100)}; }
     }
     paint();
-  });
-  host.addEventListener('click',e=>{
+  };
+  host.onclick=e=>{
+    const c=e.target.closest('.chip.pick');
+    if(c){ const r=c.closest('.chips').dataset.src, id=c.dataset.id;
+      const at=src[r].indexOf(id);
+      if(at<0) src[r].push(id); else src[r].splice(at,1);
+      c.classList.toggle('on',at<0); return; }
     const b=e.target.closest('.seg button'); if(!b) return;
     host.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b));
     unit=b.dataset.v; paint();
-  });
+  };
   paint();
   return p.then(v=>{
     if(v!=='go') return null;
-    const picks=['protein','carb','fat','veg']
-      .map(r=>host.querySelector(`[data-src="${r}"]`).value).filter(Boolean).map(F).filter(Boolean);
-    return {kcal,split,picks};
+    return {kcal,split,src:{...src}};
   });
 }
 
@@ -1049,27 +1167,35 @@ function onboardingDialog(){
       return true;
     }
     $('#veil').classList.add('show');
-    $('#mBody').addEventListener('change', e=>{ readField(e.target); });
-    $('#mBody').addEventListener('click', e=>{
+    const finish=v=>{ $('#veil').classList.remove('show'); ACTIVE_WIZARD_PAINT=null; closeModal=null; resolve(v); };
+    closeModal=()=>finish({...p,done:true,_skipped:true});   // Escape / clicking the backdrop counts as Skip
+    $('#mBody').oninput=null;
+    $('#mBody').onchange = e=>{ readField(e.target); };
+    $('#mBody').onclick = e=>{
       const b=e.target.closest('.seg button'); if(!b) return;
       const host=b.closest('.seg'); host.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
       p[host.dataset.w]=b.dataset.v; paint();
-    });
+    };
     $('#mBtns').onclick = e=>{
       const b=e.target.closest('button'); if(!b) return;
       const nav=b.dataset.nav;
-      if(nav==='back'){ if(step===0){ $('#veil').classList.remove('show'); ACTIVE_WIZARD_PAINT=null; resolve({...p,done:true,_skipped:true}); return; } step--; paint(); return; }
+      if(nav==='back'){ if(step===0){ finish({...p,done:true,_skipped:true}); return; } step--; paint(); return; }
       if(nav==='restart'){ step=0; paint(); return; }
       if(nav==='fwd'){
         if(!valid()){ const m=$('#wMsg'); if(m) m.textContent=t('Fill in age, height and weight to continue.'); return; }
         if(step<2){ step++; paint(); return; }
-        $('#veil').classList.remove('show'); ACTIVE_WIZARD_PAINT=null; resolve({...p,done:true,_skipped:false});
+        finish({...p,done:true,_skipped:false});
       }
     };
     paint();
   });
 }
-async function runOnboarding(){
+async function runOnboarding(auto){
+  // never elbow our way over a dialog the user already opened — that used to replace the Build
+  // dialog's contents mid-flow, which is why its buttons appeared to do nothing
+  if(auto&&(modalOpen()||ACTIVE_WIZARD_PAINT)) return;
+  if(!auto&&ACTIVE_WIZARD_PAINT) return;
+  if(!auto&&modalOpen()&&closeModal) closeModal(null);
   const result = await onboardingDialog();
   S.profile = {...result}; delete S.profile._skipped;
   if(!result._skipped){
@@ -1085,12 +1211,18 @@ async function runOnboarding(){
 /* ---------------- views ---------------- */
 function ledger(){
   const host=$('#ledger'); if(!host) return;
-  const {tgt}=dayTotals();                    // target only — what you plan to eat, not what's logged so far
-  const cell=(cls,lab,v,unit)=>`<div class="lg ${cls}">
-      <div class="lab"><span>${lab}</span></div>
-      <div class="val">${r0(v)}${unit==='kcal'?' '+t('kcal'):' '+t('g')}</div></div>`;
-  host.innerHTML=cell('k-cal',t('Calories'),tgt.k,'kcal')+cell('k-p',t('Protein'),tgt.p,'g')+
-    cell('k-c',t('Carbs'),tgt.c,'g')+cell('k-f',t('Fat'),tgt.f,'g');
+  // the day as a whole: what the meals on the plan actually add up to, against the daily target
+  const {act,tgt}=dayTotals();
+  const cell=(cls,lab,a,goal,unit)=>{
+    const pct=goal>0?a/goal*100:0, over=goal>0&&a>goal*1.03, d=a-goal;
+    return `<div class="lg ${cls}">
+      <div class="lab"><span>${lab}</span><span class="lgd ${Math.abs(d)<(unit==='kcal'?25:2)?'fit':(d>0?'pos':'neg')}">${goal>0?(d>0?'+':'')+r0(d):''}</span></div>
+      <div class="val">${r0(a)}<small> / ${r0(goal)} ${unit==='kcal'?t('kcal'):t('g')}</small></div>
+      <span class="track ${over?'over':''}"><span class="fill" style="width:${Math.min(100,Math.max(0,pct))}%"></span></span>
+    </div>`;
+  };
+  host.innerHTML=cell('k-cal',t('Calories'),act.k,tgt.k,'kcal')+cell('k-p',t('Protein'),act.p,tgt.p,'g')+
+    cell('k-c',t('Carbs'),act.c,tgt.c,'g')+cell('k-f',t('Fat'),act.f,tgt.f,'g');
   const di=$('#dDate'); if(di) di.value=S.date;
   const dl=$('#dLabel');
   if(dl){ const diff=Math.round((new Date(S.date)-new Date(today()))/864e5);
@@ -1100,19 +1232,25 @@ function ledger(){
 }
 function mealCard(m){
   const list=items(m.id), tot=mealTotals(m.id);
-  const rows=list.map((it,i)=>{
+  const oneRow=(it,i)=>{
     const f=F(it.fid); if(!f) return '';
     const x=itemMacros(it);
     return `<div class="row" data-m="${m.id}" data-i="${i}">
       <div><div class="rname" title="${esc(f.n)}">${esc(f.n)}</div>
-        <span class="rmac"><b class="c-p">${r1(x.p)}p</b> · <b class="c-c">${r1(x.c)}c</b> · <b class="c-f">${r1(x.f)}f</b>${x.fib>0.05?' · '+r1(x.fib)+' fib':''} · ${r0(x.k)} kcal</span></div>
+        <span class="rmac"><b class="c-p">${r1(x.p)}${MS().p}</b> · <b class="c-c">${r1(x.c)}${MS().c}</b> · <b class="c-f">${r1(x.f)}${MS().f}</b>${x.fib>0.05?' · '+r1(x.fib)+' '+t('fiber short'):''} · ${r0(x.k)} kcal</span></div>
       <div class="qty"><button data-act="dec" aria-label="${t('decrease')}">−</button>
         <input class="num" type="number" inputmode="decimal" data-act="qty" value="${it.q}" step="${f.st}" min="0">
         <button data-act="inc" aria-label="${t('increase')}">+</button><span class="u">${esc(f.u)}</span></div>
       <div class="icons">
         <button class="ico ${it.lock?'on':''}" data-act="lock" title="${it.lock?t('Locked'):t('Lock')}">${it.lock?'🔒':'🔓'}</button>
         <button class="ico" data-act="del" title="${t('Remove')}">✕</button></div></div>`;
-  }).join('');
+  };
+  // grouped by role, the same way the Build dialog asks for them — so what is on the plate
+  // reads back as "this is the protein, this is the carb" instead of one flat list
+  const indexed=list.map((it,i)=>({it,i})).filter(x=>F(x.it.fid));
+  const groups=ROLE_ORDER.map(r=>[r,indexed.filter(x=>(F(x.it.fid).role||'veg')===r)]).filter(([,g])=>g.length);
+  const rows=groups.map(([r,g])=>
+    `<div class="rgroup"><div class="rglab">${t(ROLE_HEAD[r])}</div>${g.map(x=>oneRow(x.it,x.i)).join('')}</div>`).join('');
   const bar=(cls,lab,a,t)=>{
     const pct=t>0?Math.min(100,a/t*100):(a>0?100:0), over=t>0&&a>t*1.03, d=a-t;
     return `<div class="bar"><span class="bl">${lab}</span>
@@ -1120,18 +1258,39 @@ function mealCard(m){
       <span class="bv">${r1(a)} <span class="hint">/ ${r1(t)}</span> <span class="delta ${Math.abs(d)<2?'fit':(d>0?'pos':'neg')}">${d>0?'+':''}${r1(d)}</span></span></div>`;
   };
   const opts=[...S.foods].sort((a,b)=>a.n.localeCompare(b.n)).map(f=>`<option value="${f.id}">${esc(f.n)}</option>`).join('');
+  const alt=ALT[m.id];
   return `<section class="card meal" data-m="${m.id}">
     <div class="mhead"><span class="mname">${esc(m.name)}</span><span class="mkcal">${r0(tot.k)} / ${r0(targetKcal(m.t))} ${t('kcal')}</span></div>
+    ${buildNote(m.id,alt)}
     <div class="rows">${rows||'<div class="empty">'+t('Empty — add something below or fill it automatically.')+'</div>'}</div>
     <div class="addrow"><select data-act="add"><option value="">${t('+ add food…')}</option>${opts}</select></div>
-    <div class="mtot">${bar('p','P',tot.p,m.t.p)}${bar('c','K',tot.c,m.t.c)}${bar('f','Y',tot.f,m.t.f)}</div>
+    <div class="mtot">${bar('p',MS().P,tot.p,m.t.p)}${bar('c',MS().C,tot.c,m.t.c)}${bar('f',MS().F,tot.f,m.t.f)}</div>
     <div class="acts">
       <button class="btn solid" data-act="build">${t('Build…')}</button>
       <button class="btn" data-act="auto">${t('Auto-fill')}</button>
       <button class="btn ghost" data-act="alt">${t('Another option')}</button>
-      <button class="btn ghost" data-act="shuffle">${t('Shuffle')}</button>
-      <button class="btn ghost" data-act="savemeal">${t('Save')}</button>
-      <button class="btn ghost" data-act="clear">${t('Clear')}</button></div></section>`;
+      <span class="actsend">
+        <details class="more"><summary class="btn ghost" title="${t('More')}">⋯</summary>
+          <div class="moremenu">
+            <button data-act="savemeal">${t('Save this combination')}</button>
+            <button data-act="copymeal">${t('Copy as text')}</button>
+          </div></details>
+        <button class="btn ghost danger iconbtn" data-act="clear"
+          title="${t('Clear all — same as removing every row by hand')}" aria-label="${t('Clear all')}">🗑</button>
+      </span>
+    </div></section>`;
+}
+/* what the last Build asked for, and which option of that batch is on screen right now */
+function buildNote(mid,alt){
+  const b=S.build?.[mid]; if(!b) return '';
+  const names=['protein','carb','fat','veg'].flatMap(r=>(b.src?.[r]||[]).map(F).filter(Boolean).map(f=>f.n));
+  const g=gramsFrom(b.kcal,b.split);
+  return `<div class="bnote">
+    <span class="bn-t">${t('Built for')} <b>${r0(b.kcal)} ${t('kcal')}</b>
+      · ${r0(g.p)}${MS().p} ${r0(g.c)}${MS().c} ${r0(g.f)}${MS().f}</span>
+    <span class="bn-s">${names.length?esc(names.join(' · ')):t('any source')}</span>
+    ${alt&&alt.list.length>1?`<span class="chip">${t('Option')} ${alt.i+1}/${alt.list.length}</span>`:''}
+    <button class="ico" data-act="forgetbuild" title="${t('Forget these build settings')}">✕</button></div>`;
 }
 const viewPlan=()=>`${!S.profile?.done?`<div class="calcbanner">
     <span>${t('Not set up yet. Answer a few questions and we will suggest daily calories and macros for you.')}</span>
@@ -1147,8 +1306,7 @@ const viewPlan=()=>`${!S.profile?.done?`<div class="calcbanner">
     ${dayTotals().act.fib>0.05?`<span class="chip">${r1(dayTotals().act.fib)} ${t('g')} ${t('Fiber').toLowerCase()}</span>`:''}<span class="spacer"></span>
     <button class="btn solid" id="fillAll">${t('Fill the whole day')}</button>
     <button class="btn" id="copyPrev">${t('Same as yesterday')}</button>
-    <button class="btn" id="btnShare">${t('Share')}</button>
-    <button class="btn ghost" id="copyDay">${t('Copy as text')}</button></div>
+    <button class="btn" id="btnShare">${t('Share')}</button></div>
   <div class="grid">${S.template.map(mealCard).join('')}</div>`;
 
 function viewFoods(){
@@ -1368,11 +1526,14 @@ function applyShared(d){
   S.days[S.date]={}; d.m.forEach((m,i)=>{ S.days[S.date][S.template[i].id]=(m.i||[]).filter(x=>F(x[0])).map(x=>({fid:x[0],q:x[1],lock:false})); });
   S.tab='plan'; touchProfile(); touchDay(); render(); toast(t('Shared plan loaded'));
 }
+function mealAsText(mid){
+  const m=S.template.find(x=>x.id===mid), l=items(mid); if(!m||!l.length) return '';
+  const tt=mealTotals(mid), S_=MS();
+  return `${m.name} — ${r0(tt.k)} kcal (${S_.P}${r1(tt.p)} ${S_.C}${r1(tt.c)} ${S_.F}${r1(tt.f)})\n`+
+    l.map(i=>{const f=F(i.fid);return f?`  · ${f.n} ${i.q}${f.b==='100g'?' g':' '+f.u}`:'';}).filter(Boolean).join('\n');
+}
 function dayAsText(){
-  const txt=S.template.map(m=>{const l=items(m.id); if(!l.length) return null; const t=mealTotals(m.id);
-    return `${m.name} — ${r0(t.k)} kcal (P${r1(t.p)} C${r1(t.c)} F${r1(t.f)})\n`+
-      l.map(i=>{const f=F(i.fid);return f?`  · ${f.n} ${i.q}${f.b==='100g'?' g':' '+f.u}`:'';}).join('\n');
-  }).filter(Boolean).join('\n\n');
+  const txt=S.template.map(m=>mealAsText(m.id)).filter(Boolean).join('\n\n');
   const d=dayTotals().act;
   const lbl = LANG==='ru' ? 'ИТОГО ЗА ДЕНЬ' : 'DAILY TOTAL';
   return `${S.date}\n\n`+txt+`\n\n${lbl}: ${r0(d.k)} ${t('kcal')} · P${r0(d.p)} C${r0(d.c)} F${r0(d.f)}`;
@@ -1397,21 +1558,24 @@ $('#view').addEventListener('click',e=>{
     touchProfile(); render(); return; }
   const b=e.target.closest('[data-act]'); if(!b) return;
   const act=b.dataset.act, mealEl=b.closest('[data-m]'), rowEl=b.closest('.row');
+  b.closest('details.more')?.removeAttribute('open');   // picking from the ⋯ menu closes it
   if(act==='dec'||act==='inc'){
     const l=items(rowEl.dataset.m), it=l[+rowEl.dataset.i], f=F(it.fid);
     it.q=Math.max(0,r1((+it.q||0)+(act==='inc'?f.st:-f.st))); touchDay(); render(); return; }
   if(act==='lock'){ const l=items(rowEl.dataset.m); l[+rowEl.dataset.i].lock=!l[+rowEl.dataset.i].lock; touchDay(); render(); return; }
   if(act==='del'){ items(rowEl.dataset.m).splice(+rowEl.dataset.i,1); touchDay(); render(); return; }
-  if(act==='auto'||act==='shuffle'){ generate(mealEl.dataset.m,act); return; }
+  if(act==='auto'){ generate(mealEl.dataset.m); return; }
   if(act==='build'){ const mid=mealEl.dataset.m;
     buildDialog(mid).then(cfg=>{ if(!cfg) return;
       const m=S.template.find(x=>x.id===mid);
       const g=gramsFrom(cfg.kcal,cfg.split);
       m.t={p:r1(g.p),c:r1(g.c),f:r1(g.f)};                       // the meal target is what you asked for
-      const list=candidates(m,{must:cfg.picks});
+      S.build=S.build||{};
+      S.build[mid]={kcal:cfg.kcal,split:cfg.split,src:cfg.src,at:Date.now()};   // remembered for next time
+      const list=candidates(m,{pools:poolsFor(mid)});
       if(!list.length){ toast(t('Could not build from those sources.')); touchProfile(); render(); return; }
       ALT[mid]={list,i:0}; applyCandidate(m,list[0]);
-      touchProfile(); touchDay(); render(); toast((LANG==='ru'?'Собрано на ':'Built to ')+r0(cfg.kcal)+' '+t('kcal'));
+      touchProfile(); touchDay(); render(); toast(t('Built to')+' '+r0(cfg.kcal)+' '+t('kcal'));
     });
     return; }
   if(act==='editfood'){ const id=b.closest('tr').dataset.f, f=F(id);
@@ -1421,7 +1585,14 @@ $('#view').addEventListener('click',e=>{
       render(); toast(t('Saved')); });
     return; }
   if(act==='alt'){ nextAlt(mealEl.dataset.m); return; }
-  if(act==='clear'){ const mid=mealEl.dataset.m; S.days[S.date][mid]=items(mid).filter(i=>i.lock); touchDay(); render(); return; }
+  if(act==='copymeal'){ const txt=mealAsText(mealEl.dataset.m);
+    if(!txt){ toast(t('Fill the meal first.')); return; } copyText(txt); return; }
+  if(act==='forgetbuild'){ const mid=mealEl.dataset.m;
+    if(S.build) delete S.build[mid];
+    delete ALT[mid]; touchProfile(); render(); toast(t('Build settings cleared')); return; }
+  if(act==='clear'){ const mid=mealEl.dataset.m;
+    if(!items(mid).some(i=>!i.lock)){ toast(t('Nothing to clear.')); return; }
+    S.days[S.date][mid]=items(mid).filter(i=>i.lock); touchDay(); render(); toast(t('Meal cleared')); return; }
   if(act==='savemeal'){
     const m=S.template.find(x=>x.id===mealEl.dataset.m), l=items(m.id);
     if(!l.length){ toast(t('Fill the meal first.')); return; }
@@ -1493,7 +1664,7 @@ $('#view').addEventListener('input',e=>{
   if(el.dataset.act==='qty'){ const row=el.closest('.row'), l=items(row.dataset.m);
     l[+row.dataset.i].q=Math.max(0,+el.value||0);
     const x=itemMacros(l[+row.dataset.i]);
-    row.querySelector('.rmac').innerHTML=`<b class="c-p">${r1(x.p)}p</b> · <b class="c-c">${r1(x.c)}k</b> · <b class="c-f">${r1(x.f)}y</b> · ${r0(x.k)} kcal`;
+    row.querySelector('.rmac').innerHTML=`<b class="c-p">${r1(x.p)}${MS().p}</b> · <b class="c-c">${r1(x.c)}${MS().c}</b> · <b class="c-f">${r1(x.f)}${MS().f}</b> · ${r0(x.k)} kcal`;
     patchMeal(row.dataset.m); ledger(); touchDay(); return; }
   if(el.id==='fq'){ foodFilter=el.value.toLowerCase(); focusSearch=true; render(); }
 });
@@ -1536,7 +1707,6 @@ document.addEventListener('click',async e=>{
   if(id==='resetAll'){ confirmBox(t('Reset everything'),t("Targets, today's plan and the food list all go back to their starting state."),t('Reset'))
     .then(ok=>{ if(!ok) return; const keep=S.tab; S=defaultState(); S.tab=keep;
       touchProfile(); touchDay(); render(); toast(t('Reset')); }); }
-  if(id==='copyDay') copyText(dayAsText());
   if(id==='copyCode'&&HOUSE) copyText(HOUSE.invite_code);
   if(id==='btnShare'){ const url=shareLink();
     modal(t('Share plan'),`<p class="hint" style="margin:0 0 8px">${t("This link carries the day's plan and targets — whoever opens it sees the same plan in their own Food's Up.")}</p><textarea id="mUrl" readonly style="height:96px">${esc(url)}</textarea>`,
@@ -1598,8 +1768,10 @@ function toggleAccountMenu(force){
   m.classList.toggle('show', show);
 }
 document.addEventListener('click', e=>{
-  const m=$('#acctMenu'); if(!m||!m.classList.contains('show')) return;
-  if(!e.target.closest('#acctMenu')&&!e.target.closest('#btnAccount')) toggleAccountMenu(false);
+  const m=$('#acctMenu'); if(m&&m.classList.contains('show')
+    &&!e.target.closest('#acctMenu')&&!e.target.closest('#btnAccount')) toggleAccountMenu(false);
+  // <details> stays open on its own; close the ⋯ menu when the click lands anywhere else
+  document.querySelectorAll('details.more[open]').forEach(d=>{ if(!d.contains(e.target)) d.open=false; });
 });
 
 function resetPasswordDialog(){
@@ -1633,7 +1805,7 @@ async function onSession(sess){
       // fires for ANY fresh sign-in (header modal, landing-page arrival, etc.), not just ?start=1 —
       // guarded so it never fires twice alongside the general first-load trigger below.
       if(!S.profile?.done && !ONBOARD_PROMPTED){ ONBOARD_PROMPTED=true;
-        setTimeout(()=>{ if(!S.profile?.done) runOnboarding(); }, 300); }
+        setTimeout(()=>{ if(!S.profile?.done) runOnboarding(true); }, 300); }
     }
   } else { HH=HOUSE=null; if(CH){ sb?.removeChannel(CH); CH=null; } adoptCache(); setStatus('local'); }
   render();
@@ -1644,7 +1816,7 @@ async function onSession(sess){
   try{ START_FLAG = !!new URLSearchParams(location.search).get('start');
     if(START_FLAG){ S.tab='plan'; history.replaceState(null,'',location.pathname+location.hash); } }catch(e){}
   setStatus(sb?'wait':'local'); render();
-  if(!readShared()&&!S.profile?.done&&!START_FLAG) setTimeout(()=>{ if(!S.profile?.done&&!ONBOARD_PROMPTED){ ONBOARD_PROMPTED=true; runOnboarding(); } }, 400);
+  if(!readShared()&&!S.profile?.done&&!START_FLAG) setTimeout(()=>{ if(!S.profile?.done&&!ONBOARD_PROMPTED){ ONBOARD_PROMPTED=true; runOnboarding(true); } }, 400);
   if(sb){
     const {data}=await sb.auth.getSession();
     await onSession(data.session||null);
