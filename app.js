@@ -123,6 +123,11 @@ const RU = {
   'Build…':'Собрать…','Auto-fill':'Автозаполнение','Another option':'Другой вариант',
   'Shuffle':'Перемешать','Save':'Сохранить','Clear':'Очистить',
   'More':'Ещё','Save this combination':'Сохранить эту комбинацию',
+  'Adjust portions':'Подобрать порции','Add':'Добавить','new':'новое',
+  'Adding this food would put the meal over target:':'С этим продуктом приём выйдет за цель:',
+  'Rebalance the meal':'Пересчитать приём','Just add it':'Просто добавить',
+  'Portions solved so the meal still lands on its target.':'Порции подобраны так, чтобы приём попал в цель.',
+  'Everything already on the plate keeps its portion.':'Всё, что уже в приёме, сохраняет свою порцию.',
   'Clear all':'Очистить всё',
   'Clear all — same as removing every row by hand':'Очистить всё — то же самое, что удалить каждую строку вручную',
   'Meal cleared':'Приём очищен','Nothing to clear.':'Нечего очищать.',
@@ -292,6 +297,11 @@ const AR = {
   "Share":"مشاركة",
   "Copy as text":"نسخ كنص",
   "More":"المزيد","Save this combination":"احفظ هذه التركيبة",
+  "Adjust portions":"ضبط الكميات","Add":"إضافة","new":"جديد",
+  "Adding this food would put the meal over target:":"إضافة هذا الطعام ستتجاوز هدف الوجبة:",
+  "Rebalance the meal":"إعادة توازن الوجبة","Just add it":"أضفه فقط",
+  "Portions solved so the meal still lands on its target.":"حُسبت الكميات لتبقى الوجبة عند هدفها.",
+  "Everything already on the plate keeps its portion.":"كل ما في الوجبة يحتفظ بكميته.",
   "Clear all":"مسح الكل",
   "Clear all — same as removing every row by hand":"مسح الكل — مثل حذف كل صف يدويًا",
   "Meal cleared":"تم مسح الوجبة","Nothing to clear.":"لا شيء لمسحه.",
@@ -1075,6 +1085,108 @@ function buildDialog(mid){
 }
 
 
+/* ---------------- adding a food to a meal ---------------- */
+const roleTag=f=>`<span class="rtag r-${f.role||'veg'}">${t(ROLE_LABEL[f.role]||'veg')}</span>`;
+const rowsTotal=rs=>{ const o={p:0,c:0,f:0,k:0};
+  rs.forEach(r=>{ const x=itemMacros(r); o.p+=x.p;o.c+=x.c;o.f+=x.f;o.k+=x.k; }); return o; };
+/* Re-solve some of a set's portions so the meal lands on its target — the same two
+   passes the generator uses, applied to foods you chose yourself. `canMove` decides
+   what is allowed to shift; everything else is held at the portion it already has. */
+function refit(rows,tg,canMove=r=>!r.lock){
+  const out=rows.map(r=>({...r}));
+  const free=out.filter(r=>F(r.fid)&&!r.lock&&canMove(r));
+  const base={p:0,c:0,f:0};
+  out.filter(r=>F(r.fid)&&!free.includes(r)).forEach(r=>{ const x=itemMacros(r); base.p+=x.p;base.c+=x.c;base.f+=x.f; });
+  const tgt={p:Math.max(0,tg.p-base.p),c:Math.max(0,tg.c-base.c),f:Math.max(0,tg.f-base.f)};
+  if(!free.length||tgt.p+tgt.c+tgt.f<=0) return out;
+  const foods=free.map(r=>F(r.fid));
+  const o=optimize(foods,tgt), pol=polish(foods,o.q,tgt);
+  free.forEach((r,i)=>r.q=pol.q[i]);
+  return out;
+}
+/* Dropping in a flat 100 g used to push the meal past its target and leave you to
+   fix it by hand. This shows what it costs, offers portions that still fit, and lets
+   you type your own numbers before anything reaches the plate. */
+function fitDialog(mid,f,startQ){
+  const m=S.template.find(x=>x.id===mid);
+  const before=items(mid).map(i=>({fid:i.fid,q:+i.q||0,lock:!!i.lock}));
+  const plain=before.map(r=>({...r})).concat([{fid:f.id,q:startQ,lock:false,isNew:true}]);
+  // A rebalance should fix the overshoot, not re-plan the meal: only the new food and
+  // the sources feeding a macro that went over are allowed to move. Otherwise adding a
+  // spoon of oil would also send the tomato from 100 g to 400 g.
+  const tot0=rowsTotal(plain);
+  const hot=new Set(['p','c','f'].filter(k=>tot0[k]-m.t[k]>0.05)
+    .map(k=>({p:'protein',c:'carb',f:'fat'}[k])));
+  const fitted=refit(plain,m.t,r=>r.isNew||hot.has((F(r.fid)||{}).role));
+  let rows=fitted.map(r=>({...r}));
+
+  const over=(()=>{ const tt=rowsTotal(plain), names={p:'Protein',c:'Carbs',f:'Fat'};
+    return ['c','p','f'].filter(k=>tt[k]-m.t[k]>0.05)
+      .sort((a,b)=>(tt[b]-m.t[b])-(tt[a]-m.t[a]))
+      .map(k=>`+${r1(tt[k]-m.t[k])} ${t('g')} ${t(names[k]).toLowerCase()}`); })();
+
+  const body=`
+    <p class="hint" style="margin:0 0 12px">${t('Adding this food would put the meal over target:')}
+      <b class="over-txt">${over.join(' · ')}</b></p>
+    <div class="seg wide" data-fit style="margin-bottom:6px">
+      <button data-v="fit" class="on">${t('Rebalance the meal')}</button>
+      <button data-v="plain">${t('Just add it')}</button>
+    </div>
+    <p class="hint" id="fitWhy" style="margin:0 0 12px"></p>
+    <div id="fitRows"></div>
+    <div class="fitsum" id="fitSum"></div>`;
+
+  const p=modal(t('Adjust portions'),body,
+    [{label:t('Cancel'),ghost:true,value:null},{label:t('Add'),solid:true,value:'add'}]);
+  const host=$('#mBody');
+
+  const rowHTML=(r,i)=>{ const fd=F(r.fid); if(!fd) return '';
+    const was=r.isNew?null:(before.find(o=>o.fid===r.fid)||{}).q;
+    const moved=was!=null&&Math.abs(was-r.q)>1e-9;
+    return `<div class="fitrow${r.isNew?' isnew':''}">
+      <div class="fitname">${esc(fd.n)} ${roleTag(fd)}${r.isNew?` <span class="chip">${t('new')}</span>`:''}</div>
+      <div class="fitq">${moved?`<s class="hint">${r1(was)}</s>`:''}
+        <input class="num" type="number" min="0" step="${fd.st}" data-r="${i}" value="${r1(r.q)}"${r.lock?' disabled':''}>
+        <span class="u">${esc(fd.u)}</span>${r.lock?`<span class="ico on" title="${t('Locked')}">🔒</span>`:''}
+      </div></div>`; };
+
+  const paintSum=()=>{ const tt=rowsTotal(rows);
+    const cell=(k,lab)=>{ const a=tt[k],g=m.t[k],d=a-g;
+      return `<span class="fitcell"><b class="c-${k}">${lab}</b> ${r1(a)}<span class="hint">/${r1(g)}</span>
+        <span class="delta ${Math.abs(d)<2?'fit':(d>0?'pos':'neg')}">${d>0?'+':''}${r1(d)}</span></span>`; };
+    $('#fitSum').innerHTML=cell('p',MS().P)+cell('c',MS().C)+cell('f',MS().F)+
+      `<span class="fitcell"><b>${r0(tt.k)}</b><span class="hint">/${r0(targetKcal(m.t))} ${t('kcal')}</span></span>`; };
+  const paintRows=()=>{ $('#fitRows').innerHTML=rows.map(rowHTML).join(''); paintSum(); };
+  const setMode=v=>{
+    rows=(v==='fit'?fitted:plain).map(r=>({...r}));
+    $('#fitWhy').textContent = v==='fit'
+      ? t('Portions solved so the meal still lands on its target.')
+      : t('Everything already on the plate keeps its portion.');
+    paintRows(); };
+
+  host.oninput=e=>{ const i=e.target.dataset.r; if(i==null) return;
+    rows[+i].q=Math.max(0,+e.target.value||0); paintSum(); };
+  host.onclick=e=>{ const b=e.target.closest('[data-fit] button'); if(!b) return;
+    host.querySelectorAll('[data-fit] button').forEach(x=>x.classList.toggle('on',x===b));
+    setMode(b.dataset.v); };
+  setMode('fit');
+  return p.then(v=>v==='add'?rows.filter(r=>r.q>0&&F(r.fid)):null);
+}
+function addToMeal(mid,f){
+  const m=S.template.find(x=>x.id===mid);
+  // 100 g is meaningless for an oil that maxes out at 80, so start inside the food's own range
+  const startQ=snap(f.b==='100g'?100:1,f);
+  const put=()=>{ items(mid).push({fid:f.id,q:startQ,lock:false}); touchDay(); render(); };
+  if(m.t.p+m.t.c+m.t.f<=0) return put();                     // no target to blow through
+  const tt=rowsTotal(items(mid).concat([{fid:f.id,q:startQ}]));
+  // a gram or two past target is not worth a dialog; anything real is
+  const over=['p','c','f'].some(k=>tt[k]-m.t[k]>Math.max(2,m.t[k]*0.03));
+  if(!over) return put();
+  fitDialog(mid,f,startQ).then(rows=>{ if(!rows) return;
+    S.days[S.date][mid]=rows.map(r=>({fid:r.fid,q:r.q,lock:r.lock}));
+    touchDay(); render(); });
+}
+
 /* ---------------------------------------------------------------- onboarding / profile wizard */
 function onboardingDialog(){
   return new Promise(resolve=>{
@@ -1257,7 +1369,13 @@ function mealCard(m){
       <span class="track ${over?'over':''} k-${cls}" style="margin:0"><span class="fill" style="width:${pct}%"></span></span>
       <span class="bv">${r1(a)} <span class="hint">/ ${r1(t)}</span> <span class="delta ${Math.abs(d)<2?'fit':(d>0?'pos':'neg')}">${d>0?'+':''}${r1(d)}</span></span></div>`;
   };
-  const opts=[...S.foods].sort((a,b)=>a.n.localeCompare(b.n)).map(f=>`<option value="${f.id}">${esc(f.n)}</option>`).join('');
+  // grouped by role, so you can see what a food counts as while you are choosing it,
+  // not only after it lands on the plate
+  const opts=ROLE_ORDER.map(r=>{
+    const g=S.foods.filter(f=>(f.role||'veg')===r).sort((a,b)=>a.n.localeCompare(b.n));
+    return g.length?`<optgroup label="${esc(t(ROLE_HEAD[r]))}">`+
+      g.map(f=>`<option value="${f.id}">${esc(f.n)}</option>`).join('')+'</optgroup>':'';
+  }).join('');
   const alt=ALT[m.id];
   return `<section class="card meal" data-m="${m.id}">
     <div class="mhead"><span class="mname">${esc(m.name)}</span><span class="mkcal">${r0(tot.k)} / ${r0(targetKcal(m.t))} ${t('kcal')}</span></div>
@@ -1626,7 +1744,7 @@ $('#view').addEventListener('click',e=>{
 $('#view').addEventListener('change',e=>{
   const el=e.target;
   if(el.dataset.act==='add'&&el.value){ const mid=el.closest('[data-m]').dataset.m, f=F(el.value);
-    items(mid).push({fid:f.id,q:f.b==='100g'?100:1,lock:false}); touchDay(); render(); return; }
+    el.value=''; addToMeal(mid,f); return; }
   const tr=el.closest('tr[data-f]');
   if(tr&&el.dataset.k){ const f=F(tr.dataset.f), k=el.dataset.k;
     if(k==='b'&&el.value!==f.b){ const to=el.value, fac=to==='piece'?1/100:100;

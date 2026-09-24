@@ -164,3 +164,19 @@ generator chooses freely from every food carrying that role.
 
 `Another option` cycles the eight candidates from the last solve and solves a
 fresh batch once they run out.
+
+### Adding a food by hand
+
+The `+ add food…` picker groups foods by role, so you can see what something
+counts as while choosing it. The starting portion is clamped into the food's
+own min–max range — 100 g means nothing for an oil that maxes out at 80.
+
+If the addition would push a macro past the meal's target by more than 2 g (or
+3%, whichever is larger), `fitDialog()` opens instead of adding silently. It
+offers portions that still fit, shows the old value beside every number it
+moved, and lets you type your own before anything reaches the plate.
+
+The rebalance deliberately does **not** re-plan the meal: only the new food and
+the sources feeding a macro that actually went over are allowed to move. Add a
+spoon of oil and the oil comes down; the tomato already on the plate stays
+where it is. Locked rows never move.
