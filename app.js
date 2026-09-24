@@ -1172,16 +1172,34 @@ function fitDialog(mid,f,startQ){
   setMode('fit');
   return p.then(v=>v==='add'?rows.filter(r=>r.q>0&&F(r.fid)):null);
 }
+const ROLE_MACRO={protein:'p',carb:'c',fat:'f'};
+/* How much of one food to start with, given what the meal still has room for.
+   A flat 100 g ignores the target entirely, and simply running the solver on a single
+   food is worse: chasing a 55 g protein target it cannot reach, it stacks six eggs and
+   sails 7 g past the fat target on the way. So aim at the macro this food is a source
+   of, then pull back until nothing else crosses its line, and round DOWN. */
+function fitQty(f,have,tg){
+  const u=perUnit(f), st=f.st||1;
+  const room=k=>Math.max(0,(tg[k]||0)-(have[k]||0));
+  const drive=ROLE_MACRO[f.role];
+  let q = (drive&&u[drive]>1e-9) ? room(drive)/u[drive] : (f.b==='100g'?100:1);
+  ['p','c','f'].forEach(k=>{ if(u[k]>1e-9) q=Math.min(q,room(k)/u[k]); });
+  q=Math.floor(q/st)*st;                      // stepping up would cross the target
+  return Math.min(f.mx,Math.max(f.mn,r1(q)));
+}
 function addToMeal(mid,f){
   const m=S.template.find(x=>x.id===mid);
-  // 100 g is meaningless for an oil that maxes out at 80, so start inside the food's own range
-  const startQ=snap(f.b==='100g'?100:1,f);
-  const put=()=>{ items(mid).push({fid:f.id,q:startQ,lock:false}); touchDay(); render(); };
-  if(m.t.p+m.t.c+m.t.f<=0) return put();                     // no target to blow through
+  // 100 g is meaningless for an oil that maxes out at 80, so stay inside the food's range
+  const plainQ=snap(f.b==='100g'?100:1,f);
+  const put=q=>{ items(mid).push({fid:f.id,q,lock:false}); touchDay(); render(); };
+  if(m.t.p+m.t.c+m.t.f<=0) return put(plainQ);               // no target to blow through
+  const startQ=fitQty(f,rowsTotal(items(mid)),m.t);
   const tt=rowsTotal(items(mid).concat([{fid:f.id,q:startQ}]));
   // a gram or two past target is not worth a dialog; anything real is
   const over=['p','c','f'].some(k=>tt[k]-m.t[k]>Math.max(2,m.t[k]*0.03));
-  if(!over) return put();
+  if(!over){ put(startQ);
+    if(startQ!==plainQ) toast(`${f.n} · ${r1(startQ)} ${f.b==='100g'?t('g'):f.u}`);
+    return; }
   fitDialog(mid,f,startQ).then(rows=>{ if(!rows) return;
     S.days[S.date][mid]=rows.map(r=>({fid:r.fid,q:r.q,lock:r.lock}));
     touchDay(); render(); });

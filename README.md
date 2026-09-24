@@ -168,8 +168,20 @@ fresh batch once they run out.
 ### Adding a food by hand
 
 The `+ add food…` picker groups foods by role, so you can see what something
-counts as while choosing it. The starting portion is clamped into the food's
-own min–max range — 100 g means nothing for an oil that maxes out at 80.
+counts as while choosing it.
+
+`fitQty()` decides the starting portion from what the meal still has room for,
+rather than dropping in a flat 100 g. It aims at the macro the food is a source
+of (`ROLE_MACRO`), pulls back until no other macro crosses its target, and
+rounds **down** so stepping never takes it over. Running the ordinary solver on
+a single food does not work here: chasing a 55 g protein target it cannot
+reach, it stacks six eggs and sails 7 g past the fat target on the way. Add an
+egg to an empty breakfast and you get four — 18 g of a 20 g fat target — and a
+toast naming the amount, since it is not the number you might have expected.
+
+A food whose own minimum portion is larger than the room left (30 g of rice
+against a 15 g carb target) still opens the dialog. Nothing can fix that
+automatically, so it says so and lets you decide.
 
 If the addition would push a macro past the meal's target by more than 2 g (or
 3%, whichever is larger), `fitDialog()` opens instead of adding silently. It
