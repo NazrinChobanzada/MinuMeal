@@ -1,8 +1,8 @@
 const SEED_FOODS=[
 {n:"Chicken breast",id:"chicken-breast",b:"100g",u:"g",p:31.5,c:0.0,f:3.7,k:168.0,mn:30,mx:350,st:10,role:"protein",use:true},
 {n:"Rice",id:"rice",b:"100g",u:"g",p:6.7,c:80.0,f:0.0,k:160.0,mn:30,mx:350,st:10,role:"carb",use:true},
-{n:"Egg",id:"egg",b:"piece",u:"adet",p:5.5,c:0.5,f:4.5,k:65.0,mn:1,mx:8,st:1,role:"protein",use:true},
-{n:"Whey ON",id:"whey-on",b:"piece",u:"ölçek",p:24.0,c:5.0,f:1.0,k:130.0,mn:0.5,mx:3,st:0.5,role:"protein",use:true},
+{n:"Egg",id:"egg",b:"piece",u:"pc",p:5.5,c:0.5,f:4.5,k:65.0,mn:1,mx:8,st:1,role:"protein",use:true},
+{n:"Whey ON",id:"whey-on",b:"piece",u:"scoop",p:24.0,c:5.0,f:1.0,k:130.0,mn:0.5,mx:3,st:0.5,role:"protein",use:true},
 {n:"Chia seeds",id:"chia-seeds",b:"100g",u:"g",p:16.5,c:42.1,f:30.7,k:486.0,mn:5,mx:80,st:5,role:"fat",use:true},
 {n:"Milk Nadec LF",id:"milk-nadec-lf",b:"100g",u:"g",p:3.1,c:4.7,f:1.8,k:45.0,mn:50,mx:400,st:10,role:"veg",use:true},
 {n:"Oats",id:"oats",b:"100g",u:"g",p:13.0,c:68.0,f:6.5,k:380.0,mn:30,mx:350,st:10,role:"carb",use:true},

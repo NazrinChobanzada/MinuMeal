@@ -123,10 +123,10 @@ const RU = {
   'Build…':'Собрать…','Auto-fill':'Автозаполнение','Another option':'Другой вариант',
   'Shuffle':'Перемешать','Save':'Сохранить','Clear':'Очистить',
   'More':'Ещё','Save this combination':'Сохранить эту комбинацию',
-  'Adjust portions':'Подобрать порции','Add':'Добавить','new':'новое',
+  'Adjust portions':'Подобрать порции','Add':'Добавить',
   'Adding this food would put the meal over target:':'С этим продуктом приём выйдет за цель:',
-  'Rebalance the meal':'Пересчитать приём','Just add it':'Просто добавить',
-  'Portions solved so the meal still lands on its target.':'Порции подобраны так, чтобы приём попал в цель.',
+  'Just add it':'Просто добавить','just added':'только что добавлено',
+  'Portions are solved so the meal still lands on its target.':'Порции подобраны так, чтобы приём попал в цель.',
   'Everything already on the plate keeps its portion.':'Всё, что уже в приёме, сохраняет свою порцию.',
   'Clear all':'Очистить всё',
   'Clear all — same as removing every row by hand':'Очистить всё — то же самое, что удалить каждую строку вручную',
@@ -297,10 +297,10 @@ const AR = {
   "Share":"مشاركة",
   "Copy as text":"نسخ كنص",
   "More":"المزيد","Save this combination":"احفظ هذه التركيبة",
-  "Adjust portions":"ضبط الكميات","Add":"إضافة","new":"جديد",
+  "Adjust portions":"ضبط الكميات","Add":"إضافة",
   "Adding this food would put the meal over target:":"إضافة هذا الطعام ستتجاوز هدف الوجبة:",
-  "Rebalance the meal":"إعادة توازن الوجبة","Just add it":"أضفه فقط",
-  "Portions solved so the meal still lands on its target.":"حُسبت الكميات لتبقى الوجبة عند هدفها.",
+  "Just add it":"أضفه فقط","just added":"أُضيف للتو",
+  "Portions are solved so the meal still lands on its target.":"حُسبت الكميات لتبقى الوجبة عند هدفها.",
   "Everything already on the plate keeps its portion.":"كل ما في الوجبة يحتفظ بكميته.",
   "Clear all":"مسح الكل",
   "Clear all — same as removing every row by hand":"مسح الكل — مثل حذف كل صف يدويًا",
@@ -859,7 +859,8 @@ async function cloudPull(){
       {meals:{v:3,template:S.template,daily:S.daily,mealUnit:S.mealUnit,profile:S.profile,build:S.build||{}},updated_at:new Date().toISOString()}).eq('user_id',u);
 
   const {data:rows}=await sb.from('foods').select('*').eq('household_id',HH);
-  if(rows&&rows.length) S.foods=rows.map(fromRow).sort((a,b)=>a.n.localeCompare(b.n));
+  if(rows&&rows.length){ S.foods=rows.map(fromRow).sort((a,b)=>a.n.localeCompare(b.n));
+    fixUnits().forEach(id=>enqueue({op:'food',id})); }
   else await uploadFoods();
 
   await loadDay(S.date);
@@ -992,7 +993,7 @@ function foodDialog(existing){
     seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
     if(seg.hasAttribute('data-role')){ role=b.dataset.v; roleTouched=true; refresh(); return; }
     get('u').style.display = b.dataset.v==='piece'?'block':'none';
-    if(b.dataset.v==='piece'&&get('u').value==='g') get('u').value='piece';
+    if(b.dataset.v==='piece'&&get('u').value==='g') get('u').value='pc';
     refresh();
   };
   refresh();
@@ -1086,7 +1087,6 @@ function buildDialog(mid){
 
 
 /* ---------------- adding a food to a meal ---------------- */
-const roleTag=f=>`<span class="rtag r-${f.role||'veg'}">${t(ROLE_LABEL[f.role]||'veg')}</span>`;
 const rowsTotal=rs=>{ const o={p:0,c:0,f:0,k:0};
   rs.forEach(r=>{ const x=itemMacros(r); o.p+=x.p;o.c+=x.c;o.f+=x.f;o.k+=x.k; }); return o; };
 /* Re-solve some of a set's portions so the meal lands on its target — the same two
@@ -1125,14 +1125,13 @@ function fitDialog(mid,f,startQ){
       .sort((a,b)=>(tt[b]-m.t[b])-(tt[a]-m.t[a]))
       .map(k=>`+${r1(tt[k]-m.t[k])} ${t('g')} ${t(names[k]).toLowerCase()}`); })();
 
+  // One toggle, not two tabs: rebalancing is the default and opting out is the exception,
+  // which is a checkbox, not an equal-weight choice.
   const body=`
-    <p class="hint" style="margin:0 0 12px">${t('Adding this food would put the meal over target:')}
+    <p class="hint" style="margin:0 0 10px">${t('Adding this food would put the meal over target:')}
       <b class="over-txt">${over.join(' · ')}</b></p>
-    <div class="seg wide" data-fit style="margin-bottom:6px">
-      <button data-v="fit" class="on">${t('Rebalance the meal')}</button>
-      <button data-v="plain">${t('Just add it')}</button>
-    </div>
-    <p class="hint" id="fitWhy" style="margin:0 0 12px"></p>
+    <label class="fitopt"><input type="checkbox" data-plain>
+      <span><b>${t('Just add it')}</b><small id="fitWhy"></small></span></label>
     <div id="fitRows"></div>
     <div class="fitsum" id="fitSum"></div>`;
 
@@ -1140,11 +1139,14 @@ function fitDialog(mid,f,startQ){
     [{label:t('Cancel'),ghost:true,value:null},{label:t('Add'),solid:true,value:'add'}]);
   const host=$('#mBody');
 
+  // The role and "new" both read as quiet subtitle text — as two competing badges they
+  // fought each other and neither said much.
   const rowHTML=(r,i)=>{ const fd=F(r.fid); if(!fd) return '';
     const was=r.isNew?null:(before.find(o=>o.fid===r.fid)||{}).q;
     const moved=was!=null&&Math.abs(was-r.q)>1e-9;
+    const sub=[t(ROLE_HEAD[fd.role||'veg'])].concat(r.isNew?[t('just added')]:[]).join(' · ');
     return `<div class="fitrow${r.isNew?' isnew':''}">
-      <div class="fitname">${esc(fd.n)} ${roleTag(fd)}${r.isNew?` <span class="chip">${t('new')}</span>`:''}</div>
+      <div class="fitname"><span class="fitn">${esc(fd.n)}</span><span class="fitsub">${sub}</span></div>
       <div class="fitq">${moved?`<s class="hint">${r1(was)}</s>`:''}
         <input class="num" type="number" min="0" step="${fd.st}" data-r="${i}" value="${r1(r.q)}"${r.lock?' disabled':''}>
         <span class="u">${esc(fd.u)}</span>${r.lock?`<span class="ico on" title="${t('Locked')}">🔒</span>`:''}
@@ -1157,19 +1159,17 @@ function fitDialog(mid,f,startQ){
     $('#fitSum').innerHTML=cell('p',MS().P)+cell('c',MS().C)+cell('f',MS().F)+
       `<span class="fitcell"><b>${r0(tt.k)}</b><span class="hint">/${r0(targetKcal(m.t))} ${t('kcal')}</span></span>`; };
   const paintRows=()=>{ $('#fitRows').innerHTML=rows.map(rowHTML).join(''); paintSum(); };
-  const setMode=v=>{
-    rows=(v==='fit'?fitted:plain).map(r=>({...r}));
-    $('#fitWhy').textContent = v==='fit'
-      ? t('Portions solved so the meal still lands on its target.')
-      : t('Everything already on the plate keeps its portion.');
+  const setMode=plainMode=>{
+    rows=(plainMode?plain:fitted).map(r=>({...r}));
+    $('#fitWhy').textContent = plainMode
+      ? t('Everything already on the plate keeps its portion.')
+      : t('Portions are solved so the meal still lands on its target.');
     paintRows(); };
 
   host.oninput=e=>{ const i=e.target.dataset.r; if(i==null) return;
     rows[+i].q=Math.max(0,+e.target.value||0); paintSum(); };
-  host.onclick=e=>{ const b=e.target.closest('[data-fit] button'); if(!b) return;
-    host.querySelectorAll('[data-fit] button').forEach(x=>x.classList.toggle('on',x===b));
-    setMode(b.dataset.v); };
-  setMode('fit');
+  host.onchange=e=>{ if(e.target.hasAttribute('data-plain')) setMode(e.target.checked); };
+  setMode(false);
   return p.then(v=>v==='add'?rows.filter(r=>r.q>0&&F(r.fid)):null);
 }
 const ROLE_MACRO={protein:'p',carb:'c',fat:'f'};
@@ -1926,7 +1926,14 @@ function resetPasswordDialog(){
 }
 
 /* ---------------- boot ---------------- */
-function adoptCache(){ const c=loadCache(); if(c&&c.template&&c.foods){ S=Object.assign(defaultState(),c); if(!S.days[S.date]) S.days[S.date]={}; } }
+// Units are free text the user can edit, but the seed list shipped two Turkish ones.
+// Rewrite them wherever a saved kitchen still carries them; anything typed by hand is left alone.
+const UNIT_FIX={'adet':'pc','ölçek':'scoop','olcek':'scoop'};
+function fixUnits(){ const hit=[];
+  (S.foods||[]).forEach(f=>{ const to=UNIT_FIX[(f.u||'').trim().toLowerCase()];
+    if(to){ f.u=to; hit.push(f.id); } });
+  return hit; }
+function adoptCache(){ const c=loadCache(); if(c&&c.template&&c.foods){ S=Object.assign(defaultState(),c); if(!S.days[S.date]) S.days[S.date]={}; } fixUnits(); }
 
 async function onSession(sess){
   const wasSignedIn=!!SESSION;

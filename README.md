@@ -183,6 +183,16 @@ A food whose own minimum portion is larger than the room left (30 g of rice
 against a 15 g carb target) still opens the dialog. Nothing can fix that
 automatically, so it says so and lets you decide.
 
+Rebalancing is the default and **Just add it** is a checkbox, not a second tab —
+it is an exception, not an equal choice. Each row carries its role as quiet
+subtitle text rather than a badge; two badges competing on one line (role plus
+"new") read as decoration and said less than one line of prose.
+
+`f.u` is free text the user can edit. The seed list shipped two Turkish labels
+(`adet`, `ölçek`); `fixUnits()` rewrites those on load and pushes the
+correction once so other devices and the shared kitchen pick it up. Units
+typed by hand are never touched.
+
 If the addition would push a macro past the meal's target by more than 2 g (or
 3%, whichever is larger), `fitDialog()` opens instead of adding silently. It
 offers portions that still fit, shows the old value beside every number it
