@@ -1544,7 +1544,7 @@ function viewSaved(){
       <div class="mhead"><span class="mname">${esc(s.name)}</span><span class="mkcal">${r0(s.k||0)} ${t('kcal')}</span></div>
       <p style="margin:9px 0 10px;font-size:13px;line-height:1.6">${it||'<span class="hint">'+t('The foods in this combination were deleted from the list.')+'</span>'}</p>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <span class="chip c-p">${r1(s.p||0)} p</span><span class="chip c-c">${r1(s.c||0)} k</span><span class="chip c-f">${r1(s.f||0)} y</span></div>
+        <span class="chip c-p">${r1(s.p||0)} ${MS().p}</span><span class="chip c-c">${r1(s.c||0)} ${MS().c}</span><span class="chip c-f">${r1(s.f||0)} ${MS().f}</span></div>
       <div class="acts"><select data-act="loadto" style="border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-size:12.5px">${mopts}</select>
         <button class="btn solid" data-act="load">${t('Load')}</button>
         <button class="btn ghost" data-act="delsaved">${t('Delete')}</button></div></section>`;}).join('')}</div>`;
