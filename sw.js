@@ -1,7 +1,11 @@
 // Food's Up — service worker
 // Caches the app shell so the app opens (and mostly works) with no connection.
-// Bump CACHE_NAME whenever you want a deploy to force-refresh everyone's cached copy.
-const CACHE_NAME = 'foodsup-shell-v1';
+const CACHE_NAME = 'foodsup-shell-v2';
+
+// Anything whose contents change when the app changes. These go network-first:
+// serving them from cache meant every deploy arrived a visit late, because you got
+// the previous build and the new one only reached the cache for next time.
+const CODE = /\.(?:html|js|css|json)$/;
 
 const SHELL_FILES = [
   '/app.html',
@@ -34,6 +38,14 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+const keep = (req, res) => {
+  if (res && res.status === 200) {
+    const copy = res.clone();
+    caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+  }
+  return res;
+};
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
 
@@ -42,21 +54,26 @@ self.addEventListener('fetch', (event) => {
   // untouched — we never want to serve a stale API response from cache.
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
 
-  event.respondWith(
-    caches.match(req).then((cached) => {
-      const network = fetch(req)
-        .then((res) => {
-          if (res && res.status === 200) {
-            const copy = res.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
-          }
-          return res;
-        })
-        .catch(() => cached); // offline: fall back to whatever we already have
+  const path = new URL(req.url).pathname;
 
-      // Cache-first for instant loads; network still runs in the background to
-      // keep the cache fresh for next time (stale-while-revalidate).
-      return cached || network;
-    })
+  // Code: network first, so a deploy takes effect on the very next load. The cache
+  // is only the offline fallback. These files are a few hundred KB, so the round
+  // trip costs little next to shipping yesterday's build.
+  if (req.mode === 'navigate' || CODE.test(path)) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => keep(req, res))
+        .catch(async () =>
+          (await caches.match(req)) ||
+          (req.mode === 'navigate' ? await caches.match('/app.html') : undefined) ||
+          Response.error())
+    );
+    return;
+  }
+
+  // Images and the rest: cache first. They are replaced by name, never edited.
+  event.respondWith(
+    caches.match(req).then((cached) =>
+      cached || fetch(req).then((res) => keep(req, res)).catch(() => Response.error()))
   );
 });
