@@ -114,12 +114,12 @@ function paintLangBtn(){
 const RU = {
   'Sign in':'Войти','Local mode':'Локальный режим','Account':'Аккаунт',
   'Plan':'План','Foods':'Продукты','Targets':'Цели','Saved':'Сохранённое',
-  'Share plan':'Поделиться планом','Back up':'Резервная копия',
+  'Back up':'Резервная копия',
   'previous day':'предыдущий день','next day':'следующий день','Today':'Сегодня',
   'today':'сегодня','yesterday':'вчера','tomorrow':'завтра',
   'Calories':'Калории','Protein':'Белки','Carbs':'Углеводы','Fat':'Жиры','Fiber':'Клетчатка',
   "Today's plan":'План на сегодня','Fill the whole day':'Заполнить весь день',
-  'Same as yesterday':'Как вчера','Share':'Поделиться','Copy as text':'Копировать как текст',
+  'Same as yesterday':'Как вчера','Copy as text':'Копировать как текст',
   'Build…':'Собрать…','Auto-fill':'Автозаполнение','Another option':'Другой вариант',
   'Shuffle':'Перемешать','Save':'Сохранить','Clear':'Очистить',
   'More':'Ещё','Save this combination':'Сохранить эту комбинацию',
@@ -244,9 +244,7 @@ const RU = {
   'Split normalised to 100%':'Доли нормализованы до 100%',
   'Meal targets scaled to the daily total':'Цели приёмов пищи подогнаны под дневную сумму',
   'New meal':'Новый приём пищи',
-  'Share plan':'Поделиться планом',
-  "This link carries the day's plan and targets — whoever opens it sees the same plan in their own Food's Up.":'Эта ссылка содержит план и цели дня — тот, кто её откроет, увидит тот же план в своём Food\'s Up.',
-  'Close':'Закрыть','Copy link':'Копировать ссылку',
+  'Close':'Закрыть',
   'Every target, day, food and saved combination.':'Все цели, дни, продукты и сохранённые комбинации.',
   'Copy':'Копировать','Download':'Скачать','Backup downloaded':'Резервная копия скачана',
   'Download blocked — you can copy the text instead.':'Скачивание заблокировано — можно скопировать текст.',
@@ -278,7 +276,6 @@ const AR = {
   "Foods":"الأطعمة",
   "Targets":"الأهداف",
   "Saved":"تم الحفظ",
-  "Share plan":"مشاركة الخطة",
   "Back up":"نسخة احتياطية",
   "previous day":"اليوم السابق",
   "next day":"اليوم التالي",
@@ -294,7 +291,6 @@ const AR = {
   "Today's plan":"خطة اليوم",
   "Fill the whole day":"تعبئة اليوم بالكامل",
   "Same as yesterday":"مثل الأمس",
-  "Share":"مشاركة",
   "Copy as text":"نسخ كنص",
   "More":"المزيد","Save this combination":"احفظ هذه التركيبة",
   "Adjust portions":"ضبط الكميات","Add":"إضافة",
@@ -515,9 +511,7 @@ const AR = {
   "Split normalised to 100%":"تم ضبط النسب إلى 100%",
   "Meal targets scaled to the daily total":"تم تعديل أهداف الوجبات وفق المجموع اليومي",
   "New meal":"وجبة جديدة",
-  "This link carries the day's plan and targets — whoever opens it sees the same plan in their own Food's Up.":"يحمل هذا الرابط خطة اليوم وأهدافه — ومن يفتحه يرى الخطة نفسها في تطبيق Food's Up الخاص به.",
   "Close":"إغلاق",
-  "Copy link":"نسخ الرابط",
   "Every target, day, food and saved combination.":"كل هدف ويوم وطعام وتركيبة محفوظة.",
   "Copy":"نسخ",
   "Download":"تنزيل",
@@ -1441,8 +1435,7 @@ const viewPlan=()=>`${!S.profile?.done?`<div class="calcbanner">
   <div class="planhead"><h2 style="margin:0">${t("Today's plan")}</h2>
     ${dayTotals().act.fib>0.05?`<span class="chip">${r1(dayTotals().act.fib)} ${t('g')} ${t('Fiber').toLowerCase()}</span>`:''}<span class="spacer"></span>
     <button class="btn solid" id="fillAll">${t('Fill the whole day')}</button>
-    <button class="btn" id="copyPrev">${t('Same as yesterday')}</button>
-    <button class="btn" id="btnShare">${t('Share')}</button></div>
+    <button class="btn" id="copyPrev">${t('Same as yesterday')}</button></div>
   <div class="grid">${S.template.map(mealCard).join('')}</div>`;
 
 function viewFoods(){
@@ -1641,19 +1634,11 @@ function render(){
   focusSearch=false;
 }
 
-/* ---------------- sharing / text export ---------------- */
-const SEED_IDS=new Set(SEED_FOODS.map(f=>f.id));
-function b64e(str){ const b=new TextEncoder().encode(str); let s='';
-  for(let i=0;i<b.length;i+=4096) s+=String.fromCharCode(...b.subarray(i,i+4096));
-  return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+/* ---------------- shared links (incoming) / text export ----------------
+   The Share button is gone — it handed you a wall of base64. Reading a #p= link
+   stays, so anything already sent to someone still opens. */
 function b64d(str){ const s=atob(str.replace(/-/g,'+').replace(/_/g,'/'));
   return new TextDecoder().decode(Uint8Array.from(s,c=>c.charCodeAt(0))); }
-function shareLink(){
-  const used=new Set(); S.template.forEach(m=>items(m.id).forEach(i=>used.add(i.fid)));
-  const custom=S.foods.filter(f=>used.has(f.id)&&!SEED_IDS.has(f.id));
-  const pack={v:3,m:S.template.map(m=>({n:m.name,t:m.t,i:items(m.id).map(x=>[x.fid,x.q])})),f:custom};
-  return location.href.split('#')[0]+'#p='+b64e(JSON.stringify(pack));
-}
 function readShared(){ const h=location.hash; if(!h.startsWith('#p=')) return null;
   try{ const d=JSON.parse(b64d(h.slice(3))); return d&&d.m?d:null; }catch(e){ return null; } }
 function applyShared(d){
@@ -1844,9 +1829,6 @@ document.addEventListener('click',async e=>{
     .then(ok=>{ if(!ok) return; const keep=S.tab; S=defaultState(); S.tab=keep;
       touchProfile(); touchDay(); render(); toast(t('Reset')); }); }
   if(id==='copyCode'&&HOUSE) copyText(HOUSE.invite_code);
-  if(id==='btnShare'){ const url=shareLink();
-    modal(t('Share plan'),`<p class="hint" style="margin:0 0 8px">${t("This link carries the day's plan and targets — whoever opens it sees the same plan in their own Food's Up.")}</p><textarea id="mUrl" readonly style="height:96px">${esc(url)}</textarea>`,
-      [{label:t('Close'),ghost:true,value:'x'},{label:t('Copy link'),solid:true,value:'copy'}]).then(v=>{ if(v==='copy') copyText(url); }); }
   if(id==='btnExport'){ const json=JSON.stringify(S,null,2);
     modal(t('Back up'),`<p class="hint" style="margin:0 0 8px">${t('Every target, day, food and saved combination.')}</p><textarea id="mJson" readonly>${esc(json)}</textarea>`,
       [{label:t('Close'),ghost:true,value:'x'},{label:t('Copy'),value:'copy'},{label:t('Download'),solid:true,value:'dl'}]).then(v=>{
