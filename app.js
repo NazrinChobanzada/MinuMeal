@@ -609,7 +609,12 @@ function paintAccountBtn(){
   el.title = SESSION ? ({ok:t('Synced'),wait:t('Changes pending'),local:t('Offline')}[status]) : label;
   $('#acctTxt').textContent = label.length>22 ? label.slice(0,20)+'…' : label;
   const menu=$('#acctMenu');
-  if(menu) menu.innerHTML = `<button id="menuSettings">${t('Settings')}</button><button id="menuSignout">${t('Sign out')}</button>`;
+  // Signed out, Settings used to be unreachable on desktop — the button went straight to the
+  // sign-in dialog and the Saved tab carries no settings. That hid Back up exactly when you
+  // need it, which is when you cannot sign in.
+  if(menu) menu.innerHTML = SESSION
+    ? `<button id="menuSettings">${t('Settings')}</button><button id="menuSignout">${t('Sign out')}</button>`
+    : `<button id="menuSignin">${t('Sign in')}</button><button id="menuSettings">${t('Settings')}</button>`;
 }
 
 
@@ -1667,7 +1672,6 @@ $('#langToggle').addEventListener('click',e=>{ const b=e.target.closest('button'
 async function goDate(d){ S.date=d; ALT={}; if(cloud()) { try{ await loadDay(d); }catch(e){ setStatus('wait'); } } save(); render(); }
 $('#btnAccount').addEventListener('click',()=>{
   if(!sb){ S.tab='account'; save(); render(); return; }
-  if(!SESSION){ signInDialog(); return; }
   toggleAccountMenu();
 });
 const shiftDate=n=>{ const d=new Date(S.date); d.setDate(d.getDate()+n); goDate(d.toLocaleDateString('sv-SE')); };
@@ -1818,6 +1822,7 @@ document.addEventListener('click',async e=>{
   if(id==='scaleMeals'){ scaleMealsToDaily(); touchProfile(); render(); toast(t('Meal targets scaled to the daily total')); }
   if(id==='doProfile'||id==='bannerCalc') runOnboarding();
   if(id==='openSignIn') signInDialog();
+  if(id==='menuSignin'){ toggleAccountMenu(false); signInDialog(); }
   if(id==='menuSettings'){ toggleAccountMenu(false); S.tab = isMobile() ? 'saved' : 'account'; save(); render(); }
   if(id==='menuSignout'){ toggleAccountMenu(false); await sb.auth.signOut(); location.href='index.html'; }
   if(id==='addMeal'){ S.template.push({id:uid(),name:t('New meal'),t:{p:0,c:0,f:0}}); touchProfile(); render(); }
