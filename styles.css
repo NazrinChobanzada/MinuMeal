@@ -139,6 +139,13 @@ details.more[open]>summary{background:var(--line2);color:var(--ink)}
   padding:7px 9px;border-radius:6px;font-size:12.5px;color:var(--ink)}
 .moremenu button:hover{background:var(--line2)}
 
+/* plans left behind by another sign-in on this browser */
+.copyrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line2)}
+.copyrow:first-of-type{border-top:0}
+.copyrow>div{flex:1;min-width:0}
+.copyn{font-size:13.5px}
+.copysub{font-family:var(--mono);font-size:11px;color:var(--muted);display:block;margin-top:2px}
+
 /* the portion-fitting dialog */
 .fitopt{display:flex;gap:9px;align-items:flex-start;margin:0 0 14px;padding:9px 11px;
   border:1px solid var(--line);border-radius:9px;background:var(--paper);cursor:pointer}
@@ -291,14 +298,14 @@ th.n{text-align:end}
 [dir="rtl"] .brand, [dir="rtl"] .brandrow, [dir="rtl"] .tabs,
 [dir="rtl"] .datebar, [dir="rtl"] .acts, [dir="rtl"] .icons, [dir="rtl"] .qty,
 [dir="rtl"] .searchbar, [dir="rtl"] .addrow, [dir="rtl"] .seg, [dir="rtl"] .mrow,
-[dir="rtl"] .chips, [dir="rtl"] .bnote, [dir="rtl"] .fitrow, [dir="rtl"] .fitsum{
+[dir="rtl"] .chips, [dir="rtl"] .bnote, [dir="rtl"] .fitrow, [dir="rtl"] .fitsum, [dir="rtl"] .copyrow{
   direction:rtl;
 }
 [dir="rtl"] .rglab, [dir="rtl"] .moremenu button{ text-align:right; }
 /* numbers, code and mono-spaced figures always read left-to-right, even inside RTL flow —
    otherwise things like "P37.1 C19.6" or dates would visually reverse and become unreadable */
 .num, .rmac, td.n input, input[type="number"], .code, .mono, .bnote .bn-t, .lg .lgd,
-.fitcell, .fitq s{ direction:ltr; unicode-bidi:isolate; }
+.fitcell, .fitq s, .copysub{ direction:ltr; unicode-bidi:isolate; }
 [dir="rtl"] .qty input{ text-align:center; }
 [dir="rtl"] .row{ direction:rtl; }
 [dir="rtl"] .row .rname{ text-align:right; }

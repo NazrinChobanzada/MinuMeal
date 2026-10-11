@@ -188,6 +188,19 @@ it is an exception, not an equal choice. Each row carries its role as quiet
 subtitle text rather than a badge; two badges competing on one line (role plus
 "new") read as decoration and said less than one line of prose.
 
+### Other copies in this browser
+
+`cacheKey()` is `minumeal:v3:` plus the signed-in user id, or `local` when signed
+out, so every sign-in writes its own localStorage entry. Change account — or move
+to a different Supabase project, which issues a fresh user id — and the old plans
+are still in the browser with nothing in the interface pointing at them.
+
+`otherCopies()` finds those entries and Settings lists them with their day count,
+latest day, saved count and food count, one Load button each. Loading sets the
+current state aside under `<key>:before-restore` and lists *that* too, so the
+round trip is reversible without opening a console. Entries holding neither a
+filled day nor a saved combination are skipped.
+
 `f.u` is free text the user can edit. The seed list shipped two Turkish labels
 (`adet`, `ölçek`); `fixUnits()` rewrites those on load and pushes the
 correction once so other devices and the shared kitchen pick it up. Units

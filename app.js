@@ -126,6 +126,12 @@ const RU = {
   'Adjust portions':'Подобрать порции','Add':'Добавить',
   'Adding this food would put the meal over target:':'С этим продуктом приём выйдет за цель:',
   'Just add it':'Просто добавить','just added':'только что добавлено',
+  'Other copies in this browser':'Другие копии в этом браузере',
+  'Plans left behind by another sign-in on this device. Loading one replaces what is on screen; the copy itself is kept, and so is the current one.':'Планы, оставшиеся от другого входа на этом устройстве. Загрузка заменит то, что на экране; сама копия сохраняется, как и текущая.',
+  'Signed out':'Без входа','Account':'Аккаунт','Set aside':'Отложено','last':'последний','saved':'сохранено','foods':'продуктов',
+  'Load this copy':'Загрузить эту копию',
+  'What is on screen now is set aside first, so you can come back to it. The copy you are loading is left untouched.':'То, что сейчас на экране, сначала откладывается, чтобы можно было вернуться. Загружаемая копия остаётся нетронутой.',
+  'Copy loaded':'Копия загружена','Could not read that copy.':'Не удалось прочитать эту копию.',
   'Portions are solved so the meal still lands on its target.':'Порции подобраны так, чтобы приём попал в цель.',
   'Everything already on the plate keeps its portion.':'Всё, что уже в приёме, сохраняет свою порцию.',
   'Clear all':'Очистить всё',
@@ -296,6 +302,12 @@ const AR = {
   "Adjust portions":"ضبط الكميات","Add":"إضافة",
   "Adding this food would put the meal over target:":"إضافة هذا الطعام ستتجاوز هدف الوجبة:",
   "Just add it":"أضفه فقط","just added":"أُضيف للتو",
+  "Other copies in this browser":"نسخ أخرى في هذا المتصفح",
+  "Plans left behind by another sign-in on this device. Loading one replaces what is on screen; the copy itself is kept, and so is the current one.":"خطط تركها تسجيل دخول آخر على هذا الجهاز. تحميل إحداها يستبدل ما على الشاشة؛ وتبقى النسخة نفسها محفوظة، وكذلك الحالية.",
+  "Signed out":"بدون تسجيل دخول","Account":"حساب","Set aside":"محفوظ جانبًا","last":"آخر","saved":"محفوظة","foods":"أطعمة",
+  "Load this copy":"تحميل هذه النسخة",
+  "What is on screen now is set aside first, so you can come back to it. The copy you are loading is left untouched.":"ما على الشاشة الآن يُحفظ جانبًا أولًا حتى يمكنك العودة إليه. والنسخة التي تحمّلها تبقى كما هي.",
+  "Copy loaded":"تم تحميل النسخة","Could not read that copy.":"تعذّرت قراءة تلك النسخة.",
   "Portions are solved so the meal still lands on its target.":"حُسبت الكميات لتبقى الوجبة عند هدفها.",
   "Everything already on the plate keeps its portion.":"كل ما في الوجبة يحتفظ بكميته.",
   "Clear all":"مسح الكل",
@@ -1563,12 +1575,51 @@ function profileCard(){
   </section>`;
 }
 
+/* Every sign-in writes to its own cache key (see cacheKey), so changing account — or
+   moving to a different Supabase project, which issues a new user id — leaves the old
+   plans sitting in this browser with nothing in the interface pointing at them. This
+   lists them. */
+function otherCopies(){
+  if(!hasLS) return [];
+  const cur=cacheKey(), out=[];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(!k||!k.startsWith('minumeal:v3:')||k===cur) continue;
+    try{
+      const d=JSON.parse(localStorage.getItem(k));
+      if(!d||!Array.isArray(d.template)||!Array.isArray(d.foods)) continue;
+      const filled=Object.keys(d.days||{})
+        .filter(x=>Object.values(d.days[x]||{}).some(a=>Array.isArray(a)&&a.length)).sort();
+      if(!filled.length&&!(d.saved||[]).length) continue;      // nothing worth offering
+      let who=k.slice('minumeal:v3:'.length);
+      // the copy a previous Load set aside has to be listed too, or going back would
+      // mean the console again — which is the whole thing this card exists to avoid
+      const aside=who.endsWith(':before-restore');
+      if(aside) who=who.slice(0,-':before-restore'.length);
+      const name = who==='local' ? t('Signed out') : t('Account')+' ·'+who.slice(0,8);
+      out.push({key:k, days:filled.length, last:filled[filled.length-1]||null,
+        saved:(d.saved||[]).length, foods:d.foods.length,
+        label: aside ? t('Set aside')+' — '+name : name});
+    }catch(e){}
+  }
+  return out.sort((a,b)=>(b.last||'').localeCompare(a.last||''));
+}
 function viewAccount(){
+  const copies=otherCopies();
+  const copiesCard = copies.length ? `<section class="card acct" style="margin-top:14px">
+      <div class="dhead"><h3>${t('Other copies in this browser')}</h3></div>
+      <p class="hint" style="margin:0 0 10px">${t('Plans left behind by another sign-in on this device. Loading one replaces what is on screen; the copy itself is kept, and so is the current one.')}</p>
+      ${copies.map(c=>`<div class="copyrow">
+        <div><div class="copyn">${esc(c.label)}</div>
+          <span class="copysub">${c.days} ${t('days')}${c.last?' · '+t('last')+' '+c.last:''} · ${c.saved} ${t('saved')} · ${c.foods} ${t('foods')}</span></div>
+        <button class="btn" data-act="usecopy" data-key="${esc(c.key)}">${t('Load')}</button>
+      </div>`).join('')}
+    </section>` : '';
   const dataCard = `<section class="card acct" style="margin-top:14px">
       <div class="dhead"><h3>${t('Data')}</h3></div>
       <p class="hint" style="margin:0 0 10px">${t('Download a copy of every target, day, food and saved combination.')}</p>
       <div class="acts" style="margin:0"><button class="btn" id="btnExport">${t('Back up')}</button></div>
-    </section>`;
+    </section>`+copiesCard;
 
   if(!sb) return `    <section class="card acct">
       <div class="dhead"><h3>${t('Local mode')}</h3></div>
@@ -1712,6 +1763,22 @@ $('#view').addEventListener('click',e=>{
   if(act==='alt'){ nextAlt(mealEl.dataset.m); return; }
   if(act==='copymeal'){ const txt=mealAsText(mealEl.dataset.m);
     if(!txt){ toast(t('Fill the meal first.')); return; } copyText(txt); return; }
+  if(act==='usecopy'){ const k=b.dataset.key;
+    confirmBox(t('Load this copy'),
+      t('What is on screen now is set aside first, so you can come back to it. The copy you are loading is left untouched.'),
+      t('Load')).then(ok=>{ if(!ok) return;
+      let d; try{ d=JSON.parse(localStorage.getItem(k)); }catch(e){}
+      if(!d||!d.template||!d.foods){ toast(t('Could not read that copy.')); return; }
+      try{ localStorage.setItem(cacheKey()+':before-restore',JSON.stringify(S)); }catch(e){}
+      S=Object.assign(defaultState(),d);
+      // land on the most recent day that actually has food, or today if none does
+      const filled=Object.keys(S.days||{})
+        .filter(x=>Object.values(S.days[x]||{}).some(a=>Array.isArray(a)&&a.length)).sort();
+      S.date=filled[filled.length-1]||today();
+      if(!S.days[S.date]) S.days[S.date]={};
+      S.tab='plan'; ALT={}; fixUnits(); save(); render(); toast(t('Copy loaded'));
+    });
+    return; }
   if(act==='forgetbuild'){ const mid=mealEl.dataset.m;
     if(S.build) delete S.build[mid];
     delete ALT[mid]; touchProfile(); render(); toast(t('Build settings cleared')); return; }
