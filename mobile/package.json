@@ -1,0 +1,20 @@
+{
+  "name": "foodsup-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "iOS and Android shells around the Food's Up web app. The website in the repo root stays the single source of truth.",
+  "type": "module",
+  "scripts": {
+    "sync": "node sync.mjs && cap sync",
+    "ios": "npm run sync && cap open ios",
+    "android": "npm run sync && cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/ios": "^8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3"
+  }
+}

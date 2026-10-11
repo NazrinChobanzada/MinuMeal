@@ -41,7 +41,10 @@
 <script src="foods.js"></script>
 <script src="app.js"></script>
 <script>
-if ('serviceWorker' in navigator) {
+// A service worker caches files off a server so the site opens offline. Inside the
+// iOS/Android shell the files are already on the device, so there is nothing to cache
+// and sw.js is not even shipped — skip it there.
+if ('serviceWorker' in navigator && !window.Capacitor) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW registration failed:', err));
   });

@@ -1,0 +1,15 @@
+{
+  "appId": "app.yourfoodsup.planner",
+  "appName": "Food's Up",
+  "webDir": "www",
+  "backgroundColor": "#EFF2E9",
+  "ios": {
+    "contentInset": "always"
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
