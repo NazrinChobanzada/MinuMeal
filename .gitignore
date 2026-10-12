@@ -1,5 +1,8 @@
 .DS_Store
 
+# Android Studio / IntelliJ project settings — per-machine, not part of the build
+.idea/
+
 # mobile build output — all of it is generated from the files in the repo root
 mobile/node_modules/
 mobile/www/
