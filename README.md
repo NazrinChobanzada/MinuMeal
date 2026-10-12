@@ -261,11 +261,19 @@ npm run android:run     # the above, then install and launch on a connected devi
 npm run android:studio  # assemble www/, then open the project in Android Studio
 ```
 
-`android-env.sh` points the build at a JDK and the SDK. Android Studio ships its
-own JDK, but it is version 25 and the Gradle that Capacitor generates (8.14.3)
-only understands up to Java 24 — it fails with `Unsupported class file major
-version 69`. So the build uses a separately installed JDK 21, which is what
-Android tooling is actually built against:
+Opening the project in Android Studio upgraded what Capacitor generated: AGP
+8.13 to 9.4.1 and Gradle 8.14.3 to 9.6.0. That upgrade needed one fix —
+`app/build.gradle` referenced `proguard-android.txt`, which AGP 9 rejects for
+carrying `-dontoptimize`; the `-optimize` variant is the same file without that
+line. With that change the debug APK builds on both the old and new toolchains.
+
+`android-env.sh` points the build at a JDK and the SDK. There is no system Java
+on this machine, and Android Studio's own JDK is version 25, which the Gradle
+Capacitor originally generated could not read (`Unsupported class file major
+version 69` — its release notes list "Java 24 support" as a feature). Gradle 9.6
+handles 25, and `gradle/gradle-daemon-jvm.properties` now pins the daemon to
+JDK 21 regardless, but the `gradlew` launcher still needs some JVM on PATH, so
+the script stays:
 
 ```bash
 brew install openjdk@21
