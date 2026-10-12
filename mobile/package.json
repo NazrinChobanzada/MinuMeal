@@ -6,8 +6,10 @@
   "type": "module",
   "scripts": {
     "sync": "node sync.mjs && cap sync",
-    "ios": "npm run sync && cap open ios",
-    "android": "npm run sync && cap open android"
+    "android": "npm run sync && . ./android-env.sh && cd android && ./gradlew assembleDebug",
+    "android:run": "npm run android && . ./android-env.sh && adb install -r android/app/build/outputs/apk/debug/app-debug.apk && adb shell monkey -p app.yourfoodsup.planner -c android.intent.category.LAUNCHER 1",
+    "android:studio": "npm run sync && cap open android",
+    "ios": "npm run sync && cap open ios"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",

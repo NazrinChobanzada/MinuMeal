@@ -252,6 +252,40 @@ npm run android   # sync, then open Android Studio
 Run `npm run sync` after every change to the site, or the app keeps showing the
 previous version.
 
+### Building Android
+
+```bash
+cd mobile
+npm run android         # assemble www/, then build the debug APK
+npm run android:run     # the above, then install and launch on a connected device
+npm run android:studio  # assemble www/, then open the project in Android Studio
+```
+
+`android-env.sh` points the build at a JDK and the SDK. Android Studio ships its
+own JDK, but it is version 25 and the Gradle that Capacitor generates (8.14.3)
+only understands up to Java 24 — it fails with `Unsupported class file major
+version 69`. So the build uses a separately installed JDK 21, which is what
+Android tooling is actually built against:
+
+```bash
+brew install openjdk@21
+```
+
+That is a Homebrew formula rather than a cask, so it installs under
+`/opt/homebrew` without a password and leaves the system Java alone.
+
+`android/local.properties` holds the SDK path. It is gitignored — the path is
+specific to one machine.
+
+**Run the emulator from Android Studio, not the terminal.** Started headless
+from a shell, the emulator on this setup wedges partway up: first with
+`Failed to bind to texture: invalid color buffer`, then, with software
+rendering, with `Can't find service: activity` once the system services fall
+over. `npm run android:studio` opens the project; the green Run button starts
+the emulator in a real window with a working GPU context. `npm run android:run`
+is for a phone plugged in over USB with debugging enabled, where there is no
+emulator involved.
+
 ### What each platform needs
 
 | | Free to build and run | Costs money |
